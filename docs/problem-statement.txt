@@ -1,0 +1,42 @@
+Support Ticket Triage
+Our support team receives hundreds of customer tickets a day. Each one has to be read,
+sorted into a category, and given a priority before anyone can act on it. We want an AI
+model to do this first pass.
+You are given a file of 300 tickets. The model will sometimes be wrong, slow, or unavailable, and a
+wrong priority on an urgent ticket is costly, so anything the system is not sure about must go to a
+person.
+
+
+What to build
+DELIVERABLES
+
+
+
+      1     A design note
+            Five or six bullet points on how you would run this for 50,000 tickets a day, and how you
+            would know it is still working well a month later.
+
+
+
+     2      The working project
+            The triage service. It reads each ticket, assigns a category and a priority, and sends the
+            tickets it is not sure about to a human review list. At the end it reports how the 300 tickets
+            were handled.
+
+
+
+Notes
+    Use any tech stack.
+    Details are left out on purpose. We will judge based on how you build.
+    Get a working core first. Add more if you have time.
+
+
+What to submit
+
+    Your code and a well-documented README that includes your design note.
+
+
+
+
+Support Ticket Triage                                                                        Problem statement
+
