@@ -176,7 +176,8 @@ Next commit: master-prompt requirement sync (this update) + dataset copy.
 | 2026-11-21 | Main | Read material, chose problem, wrote shared contract + architecture | `6daf7e4` |
 | 2026-11-21 | Main | Applied master prompt + user overrides (React/JS, dataset taxonomy), copied dataset + statement, expanded contract, updated handoff | `871bd7f` |
 | 2026-11-21 | Main | Added full README with 5–6 bullet design note + runtime artifact ignores | `ec0460c` |
-| 2026-11-21 | Data agent | Wrote `docs/dataset-notes.md`: verified 300 rows, no labels, exactly 2 injections (T-0072/T-0245), 58 safety candidates, 1 empty body (T-0093), 11 non-English tickets, duplicate/templating analysis | (this commit) |
+| 2026-11-21 | Data agent | Wrote `docs/dataset-notes.md`: verified 300 rows, no labels, exactly 2 injections (T-0072/T-0245), 58 safety candidates, 1 empty body (T-0093), 11 non-English tickets, duplicate/templating analysis | `80745ff` |
+| 2026-11-21 | Main | NOTE: `80745ff` was intended as the docs commit but a broad `git add -A` also captured the other agents' in-progress files. Message amended to "wip ... snapshot" for honesty. Going forward: stage ONLY the files for the milestone, never `git add -A` while agents are active. | `80745ff` |
 
 ---
 
