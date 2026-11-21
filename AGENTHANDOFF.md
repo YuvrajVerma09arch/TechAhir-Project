@@ -278,6 +278,17 @@ committed 300-ticket artifacts and determinism are unchanged.
 IMPORTANT: the earlier "no LLM" decision log below is superseded by this opt-in judge. The rules
 engine is still the ONLY classifier; the LLM is an optional escalation signal, not a classifier.
 
+### Groq provider configured 2026-11-21 (replaces Gemini attempt)
+Gemini key worked but 2.5-flash is retired and all current models returned 503. User then supplied
+a Groq key (`gsk_`, stored locally in gitignored `.env`). Added provider auto-detection (`gsk_` →
+Groq, `AIza` → Gemini, else OpenAI-compatible), Groq base URL, default model `openai/gpt-oss-20b`,
+and a User-Agent header (Cloudflare rejected Python-urllib's default with 403). Verified LIVE:
+escalates the stolen-phone ticket with a correct reason + summary, leaves an invoice ticket alone.
+Local `.env`: LLM_JUDGE_ENABLED=true, LLM_PROVIDER=groq, model openai/gpt-oss-20b, timeout 20.
+Added `tests/conftest.py` autouse fixture forcing LLM_JUDGE_ENABLED=false so the suite never makes
+real paid API calls; 107 tests pass. IMPORTANT: `.env` is gitignored — the Render service needs the
+same 5 env vars set in its dashboard to activate the judge live.
+
 ### LLM judge summary field added 2026-11-21
 Judge output extended to `{"escalate", "reason", "summary"}`. `summary` is a 1–2 sentence neutral
 digest, stored in `signals.llm_judge.summary` and shown in the New Ticket decision panel. It is

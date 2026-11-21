@@ -159,3 +159,126 @@ def test_disabled_judge_is_never_called(tmp_path):
     service = _service(tmp_path, InertJudge())
     service.process_batch([_ticket()])
     assert service.get_ticket("T-JUDGE-1") is not None
+
+
+# --- Gemini provider --------------------------------------------------------
+def test_gemini_key_is_auto_detected(monkeypatch):
+    monkeypatch.setenv("LLM_API_KEY", "AIza" + "x" * 35)
+    monkeypatch.delenv("LLM_PROVIDER", raising=False)
+    monkeypatch.delenv("LLM_MODEL", raising=False)
+    judge = LlmJudge()
+    assert judge.provider == "gemini"
+    assert judge.model == "gemini-3.8-flash"
+
+
+def test_explicit_openai_provider_overrides_detection(monkeypatch):
+    monkeypatch.setenv("LLM_API_KEY", "AIza" + "x" * 35)
+    monkeypatch.setenv("LLM_PROVIDER", "openai")
+    monkeypatch.setenv("LLM_MODEL", "")
+    judge = LlmJudge()
+    assert judge.provider == "openai"
+    assert judge.model == "gpt-4o-mini"
+
+
+def test_gemini_request_shape_and_response(monkeypatch):
+    import json as _json
+    import urllib.request as _urllib
+
+    monkeypatch.setenv("LLM_API_KEY", "AIza" + "x" * 35)
+    monkeypatch.setenv("LLM_JUDGE_ENABLED", "true")
+    monkeypatch.delenv("LLM_PROVIDER", raising=False)
+    monkeypatch.delenv("LLM_MODEL", raising=False)
+    judge = LlmJudge()
+
+    captured = {}
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            text = _json.dumps(
+                {
+                    "escalate": True,
+                    "reason": "possible account takeover",
+                    "summary": "Customer lost access to their account.",
+                }
+            )
+            return _json.dumps(
+                {"candidates": [{"content": {"parts": [{"text": text}]}}]}
+            ).encode("utf-8")
+
+    def fake_urlopen(request, timeout=None):
+        captured["url"] = request.full_url
+        captured["key_header"] = request.headers.get("X-goog-api-key")
+        captured["body"] = _json.loads(request.data.decode("utf-8"))
+        return FakeResponse()
+
+    monkeypatch.setattr(_urllib, "urlopen", fake_urlopen)
+    verdict = judge.judge(_ticket(), _decision_result())
+
+    assert "models/gemini-3.8-flash:generateContent" in captured["url"]
+    assert captured["key_header"] == judge.api_key
+    assert captured["body"]["generationConfig"]["temperature"] == 0
+    assert captured["body"]["generationConfig"]["responseMimeType"] == "application/json"
+    assert verdict.escalate is True
+    assert verdict.summary == "Customer lost access to their account."
+
+
+def test_parse_accepts_fenced_json():
+    verdict = LlmJudge._parse(
+        '```json\n{"escalate": false, "reason": "routine", "summary": "Invoice request."}\n```'
+    )
+    assert verdict.escalate is False
+    assert verdict.summary == "Invoice request."
+
+
+# --- Groq provider ----------------------------------------------------------
+def test_groq_key_is_auto_detected(monkeypatch):
+    monkeypatch.setenv("LLM_API_KEY", "gsk_" + "x" * 40)
+    monkeypatch.delenv("LLM_PROVIDER", raising=False)
+    monkeypatch.delenv("LLM_MODEL", raising=False)
+    monkeypatch.delenv("LLM_API_BASE", raising=False)
+    judge = LlmJudge()
+    assert judge.provider == "groq"
+    assert judge.model == "openai/gpt-oss-20b"
+    assert judge.base_url == "https://api.groq.com/openai/v1"
+
+
+def test_groq_provider_uses_openai_compatible_call(monkeypatch):
+    monkeypatch.setenv("LLM_API_KEY", "gsk_" + "x" * 40)
+    monkeypatch.setenv("LLM_PROVIDER", "groq")
+    monkeypatch.setenv("LLM_JUDGE_ENABLED", "true")
+    monkeypatch.delenv("LLM_MODEL", raising=False)
+    judge = LlmJudge()
+
+    captured = {}
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return __import__("json").dumps({
+                "choices": [{"message": {"content":
+                    '{"escalate": false, "reason": "routine", "summary": "Invoice request."}'}}]
+            }).encode("utf-8")
+
+    def fake_urlopen(request, timeout=None):
+        captured["url"] = request.full_url
+        captured["ua"] = request.headers.get("User-agent")
+        return FakeResponse()
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    verdict = judge.judge(_ticket(), _decision_result())
+
+    assert "/chat/completions" in captured["url"]
+    assert captured["ua"] == "support-ticket-triage/1.0"
+    assert verdict.escalate is False
+    assert verdict.summary == "Invoice request."

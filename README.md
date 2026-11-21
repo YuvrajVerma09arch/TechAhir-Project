@@ -206,6 +206,9 @@ endpoint (`LLM_API_KEY`, `LLM_API_BASE`, `LLM_MODEL`). It is deliberately one-di
   category or priority**. `summary` is a 1–2 sentence neutral digest shown in the dashboard.
   `temperature=0` simply makes the wording deterministic; it still generates the text. The summary
   is display-only: it is stored in the audit signals and never influences routing.
+- Providers: **Groq** (verified, `openai/gpt-oss-20b`), Gemini and any OpenAI-compatible endpoint.
+  The provider is auto-detected from the key prefix (`gsk_` → Groq, `AIza` → Gemini) or set with
+  `LLM_PROVIDER`. On Render, set these as platform environment variables — `.env` is local only.
 - Its only effect is to **add** human review. It cannot auto-accept a ticket or change a label.
 - Ticket text is injection-stripped before being sent and treated strictly as untrusted data.
 - Invalid JSON, a timeout or any API failure **fails closed** (escalates) rather than silently

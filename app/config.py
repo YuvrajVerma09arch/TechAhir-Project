@@ -14,6 +14,32 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
+def load_env_file(path: Path | None = None) -> None:
+    """Load KEY=VALUE lines from a .env file into os.environ (stdlib only).
+
+    Existing environment variables win — on Render/Vercel the platform's settings
+    take precedence over a local file. Never prints or logs values.
+    """
+    target = path or (PROJECT_ROOT / ".env")
+    if not target.is_file():
+        return
+    try:
+        lines = target.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return
+    for raw in lines:
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if key and key not in os.environ:
+            os.environ[key] = value.strip().strip('"').strip("'")
+
+
+load_env_file()
+
+
 def _env_float(name: str, default: float) -> float:
     try:
         return float(os.getenv(name, str(default)))

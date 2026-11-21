@@ -19,8 +19,11 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any
 
+from app.config import load_env_file
 from app.services.confidence import strip_injection
 from app.triage.types import TriageResult
+
+load_env_file()
 
 SYSTEM_PROMPT = """You are a cautious support-ticket review assistant.
 You are given a decision already made by a deterministic rules engine. Your ONLY job is to say
@@ -55,10 +58,42 @@ class LlmJudge:
     name = "llm-judge"
 
     def __init__(self) -> None:
-        self.api_key = os.getenv("LLM_API_KEY", "")
+        self.api_key = os.getenv("LLM_API_KEY") or os.getenv("GEMINI_API_KEY") or ""
         self.base_url = os.getenv("LLM_API_BASE", "https://api.openai.com/v1").rstrip("/")
-        self.model = os.getenv("LLM_MODEL", "gpt-4o-mini")
-        self.timeout = self._positive_float("LLM_JUDGE_TIMEOUT_SECONDS", 3.0)
+        explicit = os.getenv("LLM_PROVIDER", "").strip().lower()
+        if explicit in {"gemini", "google", "google-generative-ai"}:
+            self.provider = "gemini"
+        elif explicit in {"groq"}:
+            self.provider = "groq"
+        elif explicit in {"openai", "openai-compatible"}:
+            self.provider = "openai"
+        else:
+            # Key prefixes let us auto-detect the provider when unset.
+            if self.api_key.startswith("gsk_"):
+                self.provider = "groq"
+            elif self.api_key.startswith("AIza"):
+                self.provider = "gemini"
+            else:
+                self.provider = "openai"
+
+        if self.provider == "groq":
+            self.base_url = os.getenv("LLM_API_BASE", "https://api.groq.com/openai/v1").rstrip("/")
+        elif self.provider == "gemini":
+            self.base_url = os.getenv("LLM_API_BASE", "https://generativelanguage.googleapis.com/v1beta").rstrip("/")
+
+        DEFAULT_MODELS = {
+            "groq": "openai/gpt-oss-20b",
+            "gemini": "gemini-3.8-flash",
+            "openai": "gpt-4o-mini",
+        }
+        configured_model = os.getenv("LLM_MODEL", "").strip()
+        legacy = (
+            (self.provider == "gemini" and configured_model.startswith("gpt-"))
+            or (self.provider == "groq" and not configured_model.startswith(("openai/", "meta-", "qwen/", "llama")))
+        )
+        self.model = configured_model if configured_model and not legacy else DEFAULT_MODELS[self.provider]
+
+        self.timeout = self._positive_float("LLM_JUDGE_TIMEOUT_SECONDS", 5.0)
         flag = os.getenv("LLM_JUDGE_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
         # Enabled flag AND a key are both required; otherwise the judge is inert.
         self.enabled = flag and bool(self.api_key)
@@ -72,7 +107,13 @@ class LlmJudge:
         return value if value > 0 else default
 
     def _call_api(self, user_prompt: str) -> str:
-        """POST to an OpenAI-compatible chat endpoint and return the assistant text."""
+        """Dispatch to the configured provider and return the assistant text."""
+        if self.provider == "gemini":
+            return self._call_gemini(user_prompt)
+        # Groq exposes an OpenAI-compatible chat-completions API.
+        return self._call_openai(user_prompt)
+
+    def _call_openai(self, user_prompt: str) -> str:
         body = {
             "model": self.model,
             "temperature": 0,
@@ -87,6 +128,9 @@ class LlmJudge:
             headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.api_key}",
+                # Some providers (e.g. Groq) sit behind Cloudflare and reject the
+                # default Python-urllib User-Agent with HTTP 403.
+                "User-Agent": "support-ticket-triage/1.0",
             },
             method="POST",
         )
@@ -94,9 +138,42 @@ class LlmJudge:
             payload = json.loads(response.read().decode("utf-8"))
         return payload["choices"][0]["message"]["content"]
 
+    def _call_gemini(self, user_prompt: str) -> str:
+        """Call Google Gemini's generateContent endpoint (no SDK dependency)."""
+        body = {
+            "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+            "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
+            "generationConfig": {"temperature": 0, "responseMimeType": "application/json"},
+        }
+        url = (
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{self.model}:generateContent"
+        )
+        request = urllib.request.Request(
+            url,
+            data=json.dumps(body).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "x-goog-api-key": self.api_key,
+                "User-Agent": "support-ticket-triage/1.0",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=self.timeout) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        return payload["candidates"][0]["content"]["parts"][0]["text"]
+
     @staticmethod
     def _parse(content: str) -> JudgeVerdict:
         """Strictly validate the judge's JSON; invalid output fails closed."""
+        if isinstance(content, str):
+            cleaned = content.strip()
+            if cleaned.startswith("```"):
+                cleaned = cleaned.split("```", 2)[1]
+                if cleaned.lstrip().startswith("json"):
+                    cleaned = cleaned.lstrip()[4:]
+                cleaned = cleaned.strip()
+            content = cleaned
         try:
             parsed = json.loads(content)
         except (TypeError, ValueError) as exc:
