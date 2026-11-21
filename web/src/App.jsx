@@ -3,6 +3,7 @@ import Header from './components/Header/Header.jsx';
 import Sidebar from './components/Sidebar/Sidebar.jsx';
 import { DataProvider } from './context/DataContext.jsx';
 import Overview from './sections/Overview/Overview.jsx';
+import NewTicket from './sections/NewTicket/NewTicket.jsx';
 import Analytics from './sections/Analytics/Analytics.jsx';
 import ReviewQueue from './sections/ReviewQueue/ReviewQueue.jsx';
 import Reports from './sections/Reports/Reports.jsx';
@@ -15,6 +16,12 @@ const SECTIONS = [
     label: 'Overview',
     title: 'Overview',
     description: 'Processing status and outcomes across the ticket dataset.',
+  },
+  {
+    id: 'new',
+    label: 'New Ticket',
+    title: 'New Ticket',
+    description: 'Create one ticket and see the first-pass triage decision immediately.',
   },
   {
     id: 'analytics',
@@ -80,6 +87,7 @@ function App() {
                 <p>{current.description}</p>
               </div>
               {active === 'overview' && <Overview />}
+              {active === 'new' && <NewTicket />}
               {active === 'analytics' && <Analytics />}
               {active === 'review' && <ReviewQueue />}
               {active === 'reports' && <Reports />}

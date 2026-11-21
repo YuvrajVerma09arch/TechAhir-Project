@@ -4,7 +4,28 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+
+class NewTicketIn(BaseModel):
+    """Payload for creating and triaging a single new ticket.
+
+    ``id`` is optional — the service generates the next ``T-XXXX`` value.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    id: str | None = Field(default=None, description="Optional ticket id; generated when omitted")
+    subject: str = Field(default="", description="Ticket subject line")
+    body: str = Field(default="", description="Full ticket body")
+    customer: str = Field(default="", description="Customer name")
+    received_at: str = Field(default="", description="Timestamp as provided by the caller")
+
+    @model_validator(mode="after")
+    def require_some_text(self) -> "NewTicketIn":
+        if not (self.subject or "").strip() and not (self.body or "").strip():
+            raise ValueError("subject or body must contain some text")
+        return self
 
 
 class TicketIn(BaseModel):

@@ -11,7 +11,7 @@ from pydantic import ValidationError
 
 from app.api import ApiError, get_service
 from app.config import get_settings, resolve_project_path
-from app.schemas import BatchResultOut, BatchTicketsIn, TicketIn
+from app.schemas import BatchResultOut, BatchTicketsIn, NewTicketIn, TicketDecisionOut, TicketIn
 from app.triage.types import Ticket
 
 router = APIRouter(prefix="/api/triage", tags=["triage"])
@@ -119,6 +119,23 @@ async def batch_triage(request: Request, service=Depends(get_service)):
     """Process a batch supplied as JSON ``{"tickets": [...]}`` or a CSV upload."""
     tickets = await _parse_tickets(request)
     return service.process_batch(tickets)
+
+
+@router.post("/ticket", response_model=TicketDecisionOut)
+async def create_triage_ticket(payload: NewTicketIn, service=Depends(get_service)):
+    """Create ONE ticket and return its full triage decision.
+
+    Uses the same pipeline and safety rules as batch processing. The id is
+    generated when omitted. New tickets are additive to the benchmark dataset.
+    """
+    ticket = Ticket(
+        id=(payload.id or "").strip(),
+        received_at=payload.received_at or "",
+        customer=payload.customer or "",
+        subject=payload.subject or "",
+        body=payload.body or "",
+    )
+    return service.triage_one(ticket)
 
 
 @router.get("/seed", response_model=BatchResultOut)

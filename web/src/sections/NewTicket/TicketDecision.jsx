@@ -1,0 +1,81 @@
+import { PriorityBadge, StatusBadge } from '../../components/Badge/Badge.jsx';
+
+function Confidence({ label, value }) {
+  const pct = Math.max(0, Math.min(100, Math.round((Number(value) || 0) * 100)));
+  return (
+    <div className="nt-confidence">
+      <div className="nt-confidence__head">
+        <span>{label}</span>
+        <strong>{pct}%</strong>
+      </div>
+      <div
+        className="nt-confidence__track"
+        role="meter"
+        aria-label={label}
+        aria-valuenow={pct}
+        aria-valuemin="0"
+        aria-valuemax="100"
+      >
+        <span className="nt-confidence__fill" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+export default function TicketDecision({ decision, onCreateAnother }) {
+  const reasons = Array.isArray(decision.reasons) ? decision.reasons : [];
+  const escalated = Boolean(decision.needs_review);
+  const originalCategory = decision.original_category || decision.category;
+  const originalPriority = decision.original_priority || decision.priority;
+
+  return (
+    <section className="nt-result" aria-labelledby="nt-result-title">
+      <div className="nt-result__head">
+        <div>
+          <p className="nt-result__eyebrow">Ticket {decision.id}</p>
+          <h2 id="nt-result-title">
+            {escalated ? 'Sent to human review' : 'Automatically classified'}
+          </h2>
+        </div>
+        <StatusBadge status={decision.status} />
+      </div>
+
+      <p className="nt-result__lead">
+        {escalated
+          ? 'We are not confident enough to decide this one automatically. A person will confirm the category and priority — nothing is lost.'
+          : 'The first-pass engine was confident on both fields, so this ticket is ready for the team.'}
+      </p>
+
+      <div className="nt-result__grid">
+        <div className="nt-result__field">
+          <span className="nt-result__label">Category</span>
+          <strong>{originalCategory || '—'}</strong>
+        </div>
+        <div className="nt-result__field">
+          <span className="nt-result__label">Priority</span>
+          <PriorityBadge priority={originalPriority} />
+        </div>
+      </div>
+
+      <div className="nt-result__confidences">
+        <Confidence label="Category confidence" value={decision.category_confidence} />
+        <Confidence label="Priority confidence" value={decision.priority_confidence} />
+      </div>
+
+      {reasons.length > 0 && (
+        <div className="nt-result__reasons">
+          <h3>Why this decision</h3>
+          <ul>
+            {reasons.map((reason, index) => (
+              <li key={`${reason}-${index}`}>{reason}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <button type="button" className="btn btn--secondary" onClick={onCreateAnother}>
+        Create another ticket
+      </button>
+    </section>
+  );
+}

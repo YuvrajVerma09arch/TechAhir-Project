@@ -224,3 +224,59 @@ def test_repeat_review_returns_409_conflict(client):
     assert second.status_code == 409, second.text
     # A structured error envelope must accompany the conflict.
     assert _error(second)["code"]
+
+
+# --- single-ticket intake ---------------------------------------------------
+def test_create_ticket_generates_id_and_returns_decision(client):
+    # Act — create one ticket without supplying an id.
+    response = client.post(
+        "/api/triage/ticket",
+        json={
+            "customer": "New Raise",
+            "subject": "Invoice copy",
+            "body": "Could you send my last invoice for expenses?",
+        },
+    )
+    # Assert — a stable id and a full persisted decision come back.
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert str(body.get("ticket_id", body.get("id", ""))).startswith("T-")
+    assert body.get("status") in {
+        "auto_classified",
+        "pending_review",
+        "human_reviewed",
+        "failed",
+    }
+    assert body.get("category") in {
+        "Billing",
+        "Technical",
+        "Account",
+        "Shipping",
+        "Other",
+        None,
+    }
+
+
+def test_create_ticket_access_loss_forces_review(client):
+    response = client.post(
+        "/api/triage/ticket",
+        json={
+            "subject": "My phone was stolen",
+            "body": (
+                "My phone was stolen and it had my authenticator app. "
+                "I can no longer receive login codes and will be locked out "
+                "when the session ends."
+            ),
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["needs_review"] is True
+
+
+def test_create_ticket_rejects_empty_text(client):
+    response = client.post(
+        "/api/triage/ticket",
+        json={"subject": "   ", "body": ""},
+    )
+    assert response.status_code == 422, response.text
+    assert _error(response)["code"] == "VALIDATION_ERROR"

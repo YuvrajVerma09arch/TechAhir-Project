@@ -1,8 +1,15 @@
-import { AnalyticsIcon, OverviewIcon, ReportsIcon, ReviewIcon } from '../Icons/Icons.jsx';
+import {
+  AnalyticsIcon,
+  NewTicketIcon,
+  OverviewIcon,
+  ReportsIcon,
+  ReviewIcon,
+} from '../Icons/Icons.jsx';
 import './Sidebar.css';
 
 const ICONS = {
   overview: OverviewIcon,
+  new: NewTicketIcon,
   analytics: AnalyticsIcon,
   review: ReviewIcon,
   reports: ReportsIcon,

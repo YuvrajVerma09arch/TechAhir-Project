@@ -244,6 +244,24 @@ The user decided the repository should remain **PRIVATE** (2026-11-21) — do no
   on restart → need persistent disk + single instance for real shipping).
 - README §13 links to it.
 
+### Single-ticket intake added 2026-11-21 (user asked; brief did not require it)
+Scoped deliberately to "create + triage ONE ticket", NOT full ticket CRUD (no edit/delete/status
+workflow). Added `POST /api/triage/ticket`, `TriageService.triage_one()` (generates `T-XXXX` ids),
+`NewTicketIn`/`TicketDecisionOut` schemas, a guided React form (issue quick-picks, urgency context
+chips, examples, decision result panel), and 3 API tests. New tickets are additive — the committed
+300-ticket artifacts stay the reference benchmark. 90 tests pass; frontend build clean.
+
+### Determinism confirmation 2026-11-21
+Two independent fresh-DB runs over the same 300 tickets produced byte-identical decision fields
+(226 auto / 74 review / 0 failed / 28 Urgent, same distributions and escalation reasons). Only
+timing fields differ. Numbers change if code, thresholds, DB state or human reviews change.
+
+### Live deployments (verified by user, 2026-11-21)
+- Frontend: `https://techahir-project.vercel.app/#overview`
+- Backend: `https://support-ticket-triage-api-ro51.onrender.com/health`
+Verified: health 200, report 300/226/74/invariant true, Vercel bundle has correct baked API base
+URL, CORS preflight OK, hash deep-link 200.
+
 ### Escalation rules (for reference)
 Auto-accept needs ALL: valid ticket + valid prediction + no injection markers + no safety signals
 + no escalation/conflict/review/urgent-candidate/low-evidence flags + category conf >= 0.65

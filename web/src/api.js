@@ -103,6 +103,8 @@ export const api = {
   submitBatch: (ticketsOrFormData) =>
     request('/api/triage/batch', { method: 'POST', body: ticketsOrFormData }),
 
+  createTicket: (payload) => request('/api/triage/ticket', { method: 'POST', body: payload }),
+
   listTickets: (params = {}, signal) => request(`/api/tickets${toQuery(params)}`, { signal }),
 
   getTicket: (ticketId, signal) =>

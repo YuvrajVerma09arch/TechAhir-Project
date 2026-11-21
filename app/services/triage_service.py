@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import sqlite3
 import time
+from dataclasses import replace
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
@@ -241,6 +242,27 @@ class TriageService:
             page=page,
             page_size=page_size,
         )
+
+    def triage_one(self, ticket: Ticket) -> dict[str, Any]:
+        """Triage a single newly-created ticket, generating an id when absent.
+
+        Reuses the exact batch pipeline (so storage, reporting and safety rules are
+        identical) and returns the persisted decision. New tickets are additive to
+        the benchmark run; the committed 300-ticket artifacts remain the reference.
+        """
+        ticket_id = (ticket.id or "").strip()
+        if not ticket_id:
+            next_number = self.db.ticket_count() + 1
+            ticket_id = f"T-{next_number:04d}"
+            while self.db.get_result(ticket_id) is not None:
+                next_number += 1
+                ticket_id = f"T-{next_number:04d}"
+            ticket = replace(ticket, id=ticket_id)
+        self.process_batch([ticket])
+        result = self.get_ticket(ticket.id)
+        if result is None:  # pragma: no cover - defensive; process_batch persists a result
+            raise RuntimeError("ticket was triaged but no result was persisted")
+        return result
 
     def get_ticket(self, ticket_id: str) -> dict[str, Any] | None:
         """Return one ticket with its current decision, or None if absent."""

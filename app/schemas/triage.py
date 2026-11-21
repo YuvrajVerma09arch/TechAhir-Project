@@ -13,3 +13,12 @@ class BatchResultOut(BaseModel):
     """
 
     model_config = ConfigDict(extra="allow")
+
+
+class TicketDecisionOut(BaseModel):
+    """The persisted decision for a single ticket.
+
+    Extra keys are allowed so service additions remain backward compatible.
+    """
+
+    model_config = ConfigDict(extra="allow")

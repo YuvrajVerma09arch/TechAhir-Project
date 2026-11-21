@@ -204,6 +204,7 @@ overwritten — human corrections are stored separately for auditability.
 | --- | --- | --- |
 | `GET` | `/health` | Liveness/health |
 | `POST` | `/api/triage/batch` | Triage tickets from JSON or CSV upload |
+| `POST` | `/api/triage/ticket` | Create and triage ONE ticket (id generated when omitted) |
 | `POST` | `/api/triage/seed` | Process the bundled 300 tickets (idempotent) |
 | `GET` | `/api/tickets` | List/filter (`category`, `priority`, `status`, `page`, `page_size`) |
 | `GET` | `/api/tickets/{id}` | Ticket detail |
@@ -213,6 +214,11 @@ overwritten — human corrections are stored separately for auditability.
 
 CSV downloads are generated client-side in the dashboard's Reports section; there is no
 server-side export route.
+
+The dashboard's **New Ticket** section is a guided intake form: it offers issue-type quick
+picks, optional urgency context and worked examples, but deliberately does **not** let the raiser
+choose the category or priority — that is the engine's job. New tickets are added to the live
+store, so the committed 300-ticket artifacts remain the reference benchmark run.
 All responses use a consistent error envelope:
 `{"error": {"code": "...", "message": "...", "details": ...}}`.
 
