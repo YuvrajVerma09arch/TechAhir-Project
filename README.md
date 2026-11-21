@@ -136,6 +136,31 @@ offline.
 Because the dataset is unlabelled, we do **not** claim to have trained a supervised model.
 The engine is deliberately transparent:
 
+### How this satisfies "we want an AI model to do this first pass"
+
+In the brief, "AI model" names the **role** in the system — the component that reads a ticket and
+returns a first-pass category, priority, confidence and reason. The deterministic engine fills
+that role. We deliberately did **not** claim a trained model, because the brief also says:
+
+> *"If labelled training data does not exist: Do not pretend to have trained a supervised ML
+> model. Implement a transparent, conservative baseline using deterministic rules or a locally
+> available zero-shot model if one is already installed. Clearly document the limitations."*
+
+and *"Use any tech stack… We will judge based on how you build… Get a working core first."*
+
+| Brief requirement | How this project satisfies it |
+| --- | --- |
+| First-pass classification | Rules layer emits category + priority + confidence + reason for every ticket |
+| "wrong, slow or unavailable" | Injectable failing/invalid engines, failure containment, no ticket dropped, documented degradation path |
+| "anything not sure about goes to a person" | Dual-threshold abstention + safety flags; 24.67% escalation, 100% of Urgent escalated |
+| No paid APIs / must run locally | Fully offline, stdlib rules, no keys, reproducible |
+| Well-documented limitations | No labels → no accuracy claim; review corrections are the future training set |
+
+A human review decision is the ground truth this dataset never provided. Once enough reviews
+accumulate, a supervised model can be trained and evaluated against the rules baseline on held-out
+reviewed tickets — the `TriageEngine` protocol is the swap point. That sequencing is intentional,
+not a missing feature.
+
 ### Why no external LLM API
 
 An LLM was considered and rejected for this submission for four concrete reasons:

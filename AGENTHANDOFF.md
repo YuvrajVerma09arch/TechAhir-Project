@@ -251,6 +251,14 @@ workflow). Added `POST /api/triage/ticket`, `TriageService.triage_one()` (genera
 chips, examples, decision result panel), and 3 API tests. New tickets are additive — the committed
 300-ticket artifacts stay the reference benchmark. 90 tests pass; frontend build clean.
 
+### Positioning: "we want an AI model to do this first pass" (added 2026-11-21)
+README §6 now has an explicit "How this satisfies…" subsection: "AI model" is the ROLE (component
+that emits category/priority/confidence/reason), not a mandated technology. Quotes the brief's own
+instruction to use deterministic rules when labels are absent, its "use any tech stack / judge how
+you build" licence, and maps each brief requirement to this implementation in a table. Key line:
+a fabricated trained model would be a worse answer than a rigorous, auditable deterministic
+baseline; review corrections are the future labelled training set.
+
 ### Determinism confirmation 2026-11-21
 Two independent fresh-DB runs over the same 300 tickets produced byte-identical decision fields
 (226 auto / 74 review / 0 failed / 28 Urgent, same distributions and escalation reasons). Only
