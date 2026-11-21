@@ -195,10 +195,31 @@ All responses use a consistent error envelope:
 ## 10. Processing results
 
 <!-- RUN_STATS_START -->
-Results are generated from the real dataset by `POST /api/triage/seed` and written to
-[`artifacts/results.csv`](artifacts/results.csv) and
-[`artifacts/report.json`](artifacts/report.json). Final counts are inserted here after the
-verification run.
+Generated from the real 300-ticket dataset by `POST /api/triage/seed`. Full machine-readable
+output: [`artifacts/report.json`](artifacts/report.json),
+[`artifacts/results.csv`](artifacts/results.csv),
+[`artifacts/review_queue.csv`](artifacts/review_queue.csv).
+
+| Metric | Result |
+| --- | --- |
+| Total input / processed | **300 / 300** |
+| Automatically classified | **234 (78.0% automation coverage)** |
+| Pending human review | **66 (22.0% review rate)** |
+| Human reviewed / failed | **0 / 0** |
+| Accounting invariant | **holds** — 234 + 66 + 0 + 0 = 300 |
+| Average engine latency | ~0.8 ms/ticket |
+
+**Category distribution:** Technical 68 · Billing 65 · Account 62 · Other 61 · Shipping 44
+**Priority distribution:** Low 244 · Urgent 24 · High 20 · Medium 12
+
+**Escalations:** classifier/safety conflicts 41; safety reasons — financial loss 17, severe
+impact 15, service outage 14, explicit urgency 12, security breach 12, hard deadline 11,
+account takeover 3; prompt-injection markers 2. The two planted injections (`T-0072`, `T-0245`)
+were escalated and their embedded instructions ignored; the disguised account-compromise ticket
+`T-0259` was escalated to Urgent.
+
+These are operational counts from the deterministic rules engine, **not** accuracy figures —
+the dataset has no ground-truth labels.
 <!-- RUN_STATS_END -->
 
 ---

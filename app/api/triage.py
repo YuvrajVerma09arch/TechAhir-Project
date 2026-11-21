@@ -122,9 +122,11 @@ async def batch_triage(request: Request, service=Depends(get_service)):
 
 
 @router.get("/seed", response_model=BatchResultOut)
+@router.post("/seed", response_model=BatchResultOut)
 async def seed_triage(service=Depends(get_service)):
     """Convenience endpoint: triage all 300 tickets in ``data/tickets.csv``.
 
+    Available as both GET and POST so dashboard clients using either verb work.
     Idempotent — reprocessing known ids is handled by the service layer.
     """
     path = resolve_project_path(get_settings().data_path)

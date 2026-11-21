@@ -65,12 +65,26 @@ export function text(value, fallback = '—') {
 
 function extractCorrection(raw) {
   if (!raw || typeof raw !== 'object') return null;
-  const source = raw.correction && typeof raw.correction === 'object' ? raw.correction : raw;
-  const category = pick(source, ['category', 'corrected_category', 'human_category', 'final_category'], null);
-  const priority = pick(source, ['priority', 'corrected_priority', 'human_priority', 'final_priority'], null);
-  const reviewer = pick(source, ['reviewer', 'reviewed_by'], null);
-  const reviewedAt = pick(source, ['reviewed_at', 'reviewedAt'], null);
-  const note = pick(source, ['review_note', 'note', 'comment'], null);
+  const dedicated = raw.correction && typeof raw.correction === 'object' ? raw.correction : null;
+
+  const category = pick(
+    dedicated || raw,
+    dedicated
+      ? ['category', 'corrected_category', 'human_category', 'final_category']
+      : ['corrected_category', 'human_category', 'final_category'],
+    null
+  );
+  const priority = pick(
+    dedicated || raw,
+    dedicated
+      ? ['priority', 'corrected_priority', 'human_priority', 'final_priority']
+      : ['corrected_priority', 'human_priority', 'final_priority'],
+    null
+  );
+  const reviewer = pick(dedicated || raw, ['reviewer', 'reviewed_by'], null);
+  const reviewedAt = pick(dedicated || raw, ['reviewed_at', 'reviewedAt'], null);
+  const note = pick(dedicated || raw, ['review_note', 'note', 'comment'], null);
+
   if (category == null && priority == null && reviewer == null) return null;
   return { category, priority, reviewer, reviewedAt, note };
 }
@@ -80,10 +94,21 @@ export function normalizeTicket(raw = {}) {
   const reasons = Array.isArray(raw?.reasons) ? raw.reasons.join('; ') : null;
   return {
     id: text(pick(raw, ['ticket_id', 'id', 'ID']), '—'),
-    category: text(pick(raw, ['category', 'predicted_category']), 'Other'),
-    priority: text(pick(raw, ['priority', 'predicted_priority']), 'Medium'),
-    categoryConfidence: pick(raw, ['category_confidence', 'categoryConfidence'], null),
-    priorityConfidence: pick(raw, ['priority_confidence', 'priorityConfidence'], null),
+    // The API stores immutable original predictions in `original_*` fields and
+    // keeps corrected values in `category`/`priority`. Prefer the originals so
+    // the review modal never presents a correction as a prediction.
+    category: text(pick(raw, ['original_category', 'category', 'predicted_category']), 'Other'),
+    priority: text(pick(raw, ['original_priority', 'priority', 'predicted_priority']), 'Medium'),
+    categoryConfidence: pick(
+      raw,
+      ['original_category_confidence', 'category_confidence', 'categoryConfidence'],
+      null
+    ),
+    priorityConfidence: pick(
+      raw,
+      ['original_priority_confidence', 'priority_confidence', 'priorityConfidence'],
+      null
+    ),
     requiresReview: Boolean(pick(raw, ['requires_human_review', 'needs_review', 'requiresReview'], false)),
     reviewReason: text(pick(raw, ['review_reason', 'reviewReason', 'reason']) || reasons, '—'),
     status: text(pick(raw, ['status']), 'unknown'),

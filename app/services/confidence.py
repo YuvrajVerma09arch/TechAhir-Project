@@ -202,39 +202,42 @@ def route(
             engine,
         )
 
-    reasons: list[str] = list(prediction.reasons)
+    # `prediction.reasons` explains WHAT was decided; it is not evidence of
+    # uncertainty. Only the flags below may force a review.
+    decision_reasons: list[str] = []
     signals: dict[str, Any] = dict(prediction.signals)
 
     # Injection is evaluated on the ORIGINAL text, never on the sanitised copy.
     markers = detect_injection(ticket.text)
     if markers:
         signals["injection_markers"] = markers
-        reasons.append("prompt-injection markers detected in ticket text (ignored for classification; human review required)")
+        decision_reasons.append("prompt-injection markers detected in ticket text (ignored for classification; human review required)")
 
     safety = signals.get("safety_signals") or {}
     if safety:
-        reasons.append("safety signal detected: " + ", ".join(sorted(str(key) for key in safety)))
+        decision_reasons.append("safety signal detected: " + ", ".join(sorted(str(key) for key in safety)))
     if signals.get("priority_escalated"):
-        reasons.append("priority escalated by the safety layer")
+        decision_reasons.append("priority escalated by the safety layer")
     if signals.get("priority_conflict"):
-        reasons.append("classifier priority conflicted with safety priority; escalated")
+        decision_reasons.append("classifier priority conflicted with safety priority; escalated")
 
     is_urgent = prediction.priority is Priority.URGENT
     cat_threshold = URGENT_CAT_THRESHOLD if is_urgent else CAT_THRESHOLD
     pri_threshold = URGENT_PRIORITY_THRESHOLD if is_urgent else PRIORITY_THRESHOLD
 
     if prediction.category_confidence < cat_threshold:
-        reasons.append(
+        decision_reasons.append(
             f"category confidence below threshold ({prediction.category_confidence:.2f} < {cat_threshold:.2f})"
         )
     if prediction.priority_confidence < pri_threshold:
-        reasons.append(
+        decision_reasons.append(
             f"priority confidence below threshold ({prediction.priority_confidence:.2f} < {pri_threshold:.2f})"
         )
     if is_urgent:
-        reasons.append("urgent predictions require corroborated evidence and human confirmation")
+        decision_reasons.append("urgent predictions require corroborated evidence and human confirmation")
 
-    needs_review = bool(reasons)
+    needs_review = bool(decision_reasons)
+    reasons = list(prediction.reasons) + decision_reasons
     return TriageResult(
         id=ticket.id,
         category=prediction.category,

@@ -87,7 +87,18 @@ export const api = {
 
   getHealth: (signal) => request('/health', { signal }),
 
-  seed: () => request('/api/triage/seed', { method: 'POST' }),
+  // The agreed contract is POST. Some backend revisions expose GET instead,
+  // so fall back on 404/405/422 to keep the dashboard working across both.
+  seed: async () => {
+    try {
+      return await request('/api/triage/seed', { method: 'POST' });
+    } catch (error) {
+      if ([404, 405, 422].includes(error.status)) {
+        return request('/api/triage/seed', { method: 'GET' });
+      }
+      throw error;
+    }
+  },
 
   submitBatch: (ticketsOrFormData) =>
     request('/api/triage/batch', { method: 'POST', body: ticketsOrFormData }),

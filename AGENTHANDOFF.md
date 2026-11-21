@@ -178,7 +178,12 @@ Next commit: master-prompt requirement sync (this update) + dataset copy.
 | 2026-11-21 | Main | Added full README with 5–6 bullet design note + runtime artifact ignores | `ec0460c` |
 | 2026-11-21 | Data agent | Wrote `docs/dataset-notes.md`: verified 300 rows, no labels, exactly 2 injections (T-0072/T-0245), 58 safety candidates, 1 empty body (T-0093), 11 non-English tickets, duplicate/templating analysis | `80745ff` |
 | 2026-11-21 | Main | NOTE: `80745ff` was intended as the docs commit but a broad `git add -A` also captured the other agents' in-progress files. Message amended to "wip ... snapshot" for honesty. Going forward: stage ONLY the files for the milestone, never `git add -A` while agents are active. | `80745ff` |
-| 2026-11-21 | API agent | FastAPI app, 8 endpoints, Pydantic v2 schemas, single error envelope, CORS, Render blueprint, env example; 16 API tests pass (full suite 55 pass). Service list shape normalized at API boundary to `{data, pagination}` (original keys preserved). | (next commit) |
+| 2026-11-21 | API agent | FastAPI app, 8 endpoints, Pydantic v2 schemas, single error envelope, CORS, Render blueprint, env example; 16 API tests pass (full suite 55 pass). Service list shape normalized at API boundary to `{data, pagination}` (original keys preserved). | `478280d` |
+| 2026-11-21 | Web agent | React + JS Vite dashboard (45 files): overview, priority/category analytics, searchable review queue + modal, reports + client-side CSV exports. Light SaaS theme, WCAG AA, responsive, skeletons/empty/error states. `npm run build` clean, `npm audit` 0 vulnerabilities. | (next commit) |
+| 2026-11-21 | Main | Reconciled seed contract: `/api/triage/seed` now accepts BOTH GET and POST (frontend tried POST, API had only GET). | (next commit) |
+| 2026-11-21 | Engine agent | Deterministic rules engine, separate priority safety layer, confidence routing + injection detection, SQLite persistence, reporting, 39 tests. Offline, no trained model. | (next commit) |
+| 2026-11-21 | Main | Fixed report side-effect bug: `get_report()` was writing `artifacts/report.json` during tests and overwrote the real 300-ticket report with a 1-ticket report. Now `get_report()` is pure; artefacts are written beside the service's DB (temp DB in tests → temp artefacts). Full suite still 55 passing; report survives repeated test runs. | (next commit) |
+| 2026-11-21 | Main | End-to-end verification: 55 tests pass, frontend `npm run build` clean, API health/seed/batch/review/report smoke-tested via TestClient, idempotent re-seed confirmed (300 duplicates, no double-count), accounting invariant holds. Regenerated authoritative 300-ticket `artifacts/*`; updated README results table. | (next commit) |
 
 ---
 

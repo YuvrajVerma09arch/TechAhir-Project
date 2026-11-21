@@ -1,0 +1,77 @@
+{
+  "total_input": 300,
+  "processed": 300,
+  "successfully_processed": 300,
+  "auto_classified": 234,
+  "pending_review": 66,
+  "human_reviewed": 0,
+  "failed": 0,
+  "category_distribution": {
+    "Account": 62,
+    "Billing": 65,
+    "Other": 61,
+    "Shipping": 44,
+    "Technical": 68
+  },
+  "priority_distribution": {
+    "High": 20,
+    "Low": 244,
+    "Medium": 12,
+    "Urgent": 24
+  },
+  "escalation_reasons": [
+    {
+      "reason": "classifier/safety conflict",
+      "count": 41
+    },
+    {
+      "reason": "priority escalated by safety layer",
+      "count": 41
+    },
+    {
+      "reason": "safety: financial_loss",
+      "count": 17
+    },
+    {
+      "reason": "safety: severe_impact",
+      "count": 15
+    },
+    {
+      "reason": "safety: service_outage",
+      "count": 14
+    },
+    {
+      "reason": "safety: explicit_urgency",
+      "count": 12
+    },
+    {
+      "reason": "safety: security_breach",
+      "count": 12
+    },
+    {
+      "reason": "safety: hard_deadline",
+      "count": 11
+    },
+    {
+      "reason": "safety: account_takeover",
+      "count": 3
+    },
+    {
+      "reason": "prompt injection marker",
+      "count": 2
+    }
+  ],
+  "processing_duration_ms": 32.02,
+  "processing_duration_seconds": 0.032,
+  "automation_coverage": 0.78,
+  "automation_coverage_pct": 78.0,
+  "review_rate": 0.22,
+  "failure_rate": 0.0,
+  "submitted": 300,
+  "duplicates": 300,
+  "new_tickets": 0,
+  "human_reviews_recorded": 0,
+  "original_predictions_stored": 300,
+  "average_latency_ms": 0.816,
+  "invariant_holds": true
+}
