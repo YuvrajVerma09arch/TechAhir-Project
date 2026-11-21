@@ -278,6 +278,13 @@ committed 300-ticket artifacts and determinism are unchanged.
 IMPORTANT: the earlier "no LLM" decision log below is superseded by this opt-in judge. The rules
 engine is still the ONLY classifier; the LLM is an optional escalation signal, not a classifier.
 
+### LLM judge summary field added 2026-11-21
+Judge output extended to `{"escalate", "reason", "summary"}`. `summary` is a 1–2 sentence neutral
+digest, stored in `signals.llm_judge.summary` and shown in the New Ticket decision panel. It is
+DISPLAY-ONLY: never affects category/priority/routing; malformed summary is dropped without
+escalating. `temperature=0` only makes wording deterministic — generation still works. 101 tests
+pass; frontend build clean.
+
 ### Determinism confirmation 2026-11-21
 Two independent fresh-DB runs over the same 300 tickets produced byte-identical decision fields
 (226 auto / 74 review / 0 failed / 28 Urgent, same distributions and escalation reasons). Only

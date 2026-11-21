@@ -43,10 +43,14 @@ class InertJudge:
 
 
 # --- strict verdict parsing -------------------------------------------------
-def test_parse_valid_escalate_verdict():
-    verdict = LlmJudge._parse('{"escalate": true, "reason": "possible account takeover"}')
+def test_parse_valid_escalate_verdict_with_summary():
+    verdict = LlmJudge._parse(
+        '{"escalate": true, "reason": "possible account takeover", '
+        '"summary": "Customer cannot log in after changing their phone number."}'
+    )
     assert verdict.escalate is True
     assert verdict.reason == "possible account takeover"
+    assert verdict.summary == "Customer cannot log in after changing their phone number."
     assert verdict.ok is True
 
 
@@ -72,6 +76,15 @@ def test_parse_missing_reason_fails_closed():
     verdict = LlmJudge._parse('{"escalate": false}')
     assert verdict.escalate is True
     assert verdict.ok is False
+
+
+def test_malformed_summary_is_dropped_without_changing_routing():
+    verdict = LlmJudge._parse(
+        '{"escalate": false, "reason": "routine", "summary": {"bad": "type"}}'
+    )
+    assert verdict.escalate is False
+    assert verdict.ok is True
+    assert verdict.summary == ""
 
 
 def test_missing_key_means_disabled(monkeypatch):
@@ -128,9 +141,9 @@ def test_judge_escalation_adds_review_without_changing_prediction(tmp_path):
     assert result["signals"]["llm_judge"]["escalate"] is True
 
 
-def test_judge_no_escalation_leaves_decision_untouched(tmp_path):
+def test_judge_no_escalation_leaves_decision_untouched_but_keeps_summary(tmp_path):
     base = _decision_result()
-    judge = FakeJudge(JudgeVerdict(False, "routine request"))
+    judge = FakeJudge(JudgeVerdict(False, "routine request", "Customer asked for an invoice copy."))
     service = _service(tmp_path, judge)
 
     service.process_batch([_ticket()])
@@ -138,7 +151,8 @@ def test_judge_no_escalation_leaves_decision_untouched(tmp_path):
 
     assert result["needs_review"] == base.needs_review
     assert result["status"] == base.status.value
-    assert "llm_judge" not in result["signals"]
+    assert result["signals"]["llm_judge"]["summary"] == "Customer asked for an invoice copy."
+    assert result["signals"]["llm_judge"]["escalate"] is False
 
 
 def test_disabled_judge_is_never_called(tmp_path):

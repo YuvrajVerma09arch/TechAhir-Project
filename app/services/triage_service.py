@@ -191,15 +191,18 @@ class TriageService:
                 # never change category/priority or turn a review into an auto-accept.
                 if result.status is not Status.FAILED and getattr(self.judge, "enabled", False):
                     verdict = self.judge.judge(ticket, result)
+                    # Store the verdict for audit/display even when it does not escalate.
+                    result.signals["llm_judge"] = {
+                        "escalate": verdict.escalate,
+                        "reason": verdict.reason,
+                        "summary": verdict.summary,
+                        "ok": verdict.ok,
+                        "error": verdict.error,
+                    }
                     if verdict.escalate:
                         result.needs_review = True
                         result.status = Status.PENDING_REVIEW
                         result.reasons.append(f"LLM judge: {verdict.reason}")
-                        result.signals["llm_judge"] = {
-                            "escalate": True,
-                            "ok": verdict.ok,
-                            "error": verdict.error,
-                        }
             except Exception as exc:  # noqa: BLE001 - any post-insert failure must not orphan a ticket
                 reasons = [f"processing failure: {type(exc).__name__}: {exc}"]
                 if prediction is None:

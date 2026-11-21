@@ -202,7 +202,10 @@ The rules engine is always the classifier. An **optional**, off-by-default LLM l
 on top as a *caution judge* — configured with `LLM_JUDGE_ENABLED=true` and an OpenAI-compatible
 endpoint (`LLM_API_KEY`, `LLM_API_BASE`, `LLM_MODEL`). It is deliberately one-directional:
 
-- It returns only `{"escalate": boolean, "reason": string}` — **never a category or priority**.
+- It returns only `{"escalate": boolean, "reason": string, "summary": string}` — **never a
+  category or priority**. `summary` is a 1–2 sentence neutral digest shown in the dashboard.
+  `temperature=0` simply makes the wording deterministic; it still generates the text. The summary
+  is display-only: it is stored in the audit signals and never influences routing.
 - Its only effect is to **add** human review. It cannot auto-accept a ticket or change a label.
 - Ticket text is injection-stripped before being sent and treated strictly as untrusted data.
 - Invalid JSON, a timeout or any API failure **fails closed** (escalates) rather than silently
