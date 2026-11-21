@@ -124,6 +124,30 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(Exception, unhandled_error_handler)
 
 
+def normalize_list(result: Any) -> dict:
+    """Adapt a service list payload to the documented {data, pagination} shape.
+
+    The service currently returns ``{items, total, page, page_size, total_pages}``.
+    Keeping the adaptation here means the public API contract stays stable even
+    if the persistence layer changes its internal envelope.
+    """
+    if result is None:
+        result = {}
+    if not isinstance(result, dict):
+        raise ApiError(500, "INTERNAL_ERROR", "Unexpected list result from the service.")
+    payload = dict(result)
+    if "data" not in payload:
+        payload["data"] = result.get("items", result.get("data", [])) or []
+    if "pagination" not in payload:
+        payload["pagination"] = {
+            "page": result.get("page", 1),
+            "page_size": result.get("page_size", get_settings().default_page_size),
+            "total": result.get("total", 0),
+            "total_pages": result.get("total_pages", 0),
+        }
+    return payload
+
+
 def get_service():
     """FastAPI dependency providing a TriageService bound to configured DB.
 

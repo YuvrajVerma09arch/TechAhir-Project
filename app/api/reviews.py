@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
 
-from app.api import ApiError, get_service
+from app.api import ApiError, get_service, normalize_list
 from app.config import get_settings
 from app.schemas import ReviewIn, ReviewOut, TicketListOut
 
@@ -23,7 +23,7 @@ def get_review_queue(
     service=Depends(get_service),
 ):
     """List tickets awaiting human review, paginated."""
-    return service.get_review_queue(page=page, page_size=page_size)
+    return normalize_list(service.get_review_queue(page=page, page_size=page_size))
 
 
 @router.post("/review/{ticket_id}", response_model=ReviewOut)
@@ -40,8 +40,14 @@ def submit_review(
             payload.priority,
             payload.reviewer,
         )
-    except KeyError:
+    except (KeyError, LookupError):
         raise ApiError(404, "NOT_FOUND", f"Ticket '{ticket_id}' was not found.") from None
     if result is None:
         raise ApiError(404, "NOT_FOUND", f"Ticket '{ticket_id}' was not found.")
+    if isinstance(result, dict):
+        error = result.get("error")
+        if (isinstance(error, dict) and error.get("code") == "NOT_FOUND") or result.get(
+            "status"
+        ) == "not_found":
+            raise ApiError(404, "NOT_FOUND", f"Ticket '{ticket_id}' was not found.")
     return result

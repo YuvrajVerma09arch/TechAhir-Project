@@ -11,10 +11,24 @@ from pydantic import ValidationError
 
 from app.api import ApiError, get_service
 from app.config import get_settings, resolve_project_path
-from app.schemas import BatchResultOut, TicketIn
+from app.schemas import BatchResultOut, BatchTicketsIn, TicketIn
 from app.triage.types import Ticket
 
 router = APIRouter(prefix="/api/triage", tags=["triage"])
+
+_BATCH_REQUEST_BODY = {
+    "required": True,
+    "content": {
+        "application/json": {"schema": BatchTicketsIn.model_json_schema()},
+        "multipart/form-data": {
+            "schema": {
+                "type": "object",
+                "properties": {"file": {"type": "string", "format": "binary"}},
+                "required": ["file"],
+            }
+        },
+    },
+}
 
 
 def _validation_details(exc: ValidationError) -> list[dict]:
@@ -78,8 +92,6 @@ async def _parse_json_body(request: Request) -> List[Ticket]:
     except Exception:
         raise ApiError(400, "BAD_REQUEST", "Request body must be valid JSON.") from None
     try:
-        from app.schemas import BatchTicketsIn
-
         body = BatchTicketsIn.model_validate(payload)
     except ValidationError as exc:
         raise ApiError(
@@ -102,7 +114,7 @@ async def _parse_tickets(request: Request) -> List[Ticket]:
     return tickets
 
 
-@router.post("/batch", response_model=BatchResultOut)
+@router.post("/batch", response_model=BatchResultOut, openapi_extra={"requestBody": _BATCH_REQUEST_BODY})
 async def batch_triage(request: Request, service=Depends(get_service)):
     """Process a batch supplied as JSON ``{"tickets": [...]}`` or a CSV upload."""
     tickets = await _parse_tickets(request)

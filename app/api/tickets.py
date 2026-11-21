@@ -6,7 +6,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 
-from app.api import ApiError, get_service
+from app.api import ApiError, get_service, normalize_list
 from app.config import get_settings
 from app.schemas import TicketListOut
 from app.triage.types import Category, Priority, Status
@@ -30,12 +30,14 @@ def list_tickets(
     service=Depends(get_service),
 ):
     """Return a paginated, optionally filtered list of stored tickets."""
-    return service.list_tickets(
-        category=category.value if category else None,
-        priority=priority.value if priority else None,
-        status=status.value if status else None,
-        page=page,
-        page_size=page_size,
+    return normalize_list(
+        service.list_tickets(
+            category=category.value if category else None,
+            priority=priority.value if priority else None,
+            status=status.value if status else None,
+            page=page,
+            page_size=page_size,
+        )
     )
 
 
