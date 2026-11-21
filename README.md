@@ -229,20 +229,26 @@ output: [`artifacts/report.json`](artifacts/report.json),
 | Metric | Result |
 | --- | --- |
 | Total input / processed | **300 / 300** |
-| Automatically classified | **234 (78.0% automation coverage)** |
-| Pending human review | **66 (22.0% review rate)** |
+| Automatically classified | **226 (75.33% automation coverage)** |
+| Pending human review | **74 (24.67% review rate)** |
 | Human reviewed / failed | **0 / 0** |
-| Accounting invariant | **holds** — 234 + 66 + 0 + 0 = 300 |
-| Average engine latency | ~0.8 ms/ticket |
+| Accounting invariant | **holds** — 226 + 74 + 0 + 0 = 300 |
+| Average engine latency | ~1.4 ms/ticket |
 
 **Category distribution:** Technical 68 · Billing 65 · Account 62 · Other 61 · Shipping 44
-**Priority distribution:** Low 244 · Urgent 24 · High 20 · Medium 12
+**Priority distribution:** Low 233 · Urgent 28 · High 27 · Medium 12
 
-**Escalations:** classifier/safety conflicts 41; safety reasons — financial loss 17, severe
-impact 15, service outage 14, explicit urgency 12, security breach 12, hard deadline 11,
-account takeover 3; prompt-injection markers 2. The two planted injections (`T-0072`, `T-0245`)
-were escalated and their embedded instructions ignored; the disguised account-compromise ticket
-`T-0259` was escalated to Urgent.
+**Escalations:** classifier/safety conflicts 52; safety reasons — financial loss 20, hard
+deadline 18, access/2FA loss 17, severe impact 15, service outage 14, explicit urgency 12,
+security breach 12, account takeover 3; prompt-injection markers 2. The two planted injections
+(`T-0072`, `T-0245`) were escalated and their embedded instructions ignored; the disguised
+account-compromise ticket `T-0259`, the 2FA/access-loss tickets (`T-0123`, `T-0155`, `T-0172`,
+`T-0219`, `T-0251`) and the empty-body ticket `T-0093` are all forced to review. All 28 Urgent
+tickets require human confirmation.
+
+Coverage dropped from an earlier 78% to 75.33% deliberately: a safety review found critical
+tickets being auto-accepted as Low, and the fixes route them to people instead. Safety is
+prioritised over automation coverage.
 
 These are operational counts from the deterministic rules engine, **not** accuracy figures —
 the dataset has no ground-truth labels.

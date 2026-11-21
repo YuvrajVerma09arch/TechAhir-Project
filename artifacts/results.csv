@@ -18,11 +18,11 @@ T-0016,Other,Low,no
 T-0017,Account,Urgent,yes
 T-0018,Account,Urgent,yes
 T-0019,Technical,Low,no
-T-0020,Account,Low,no
+T-0020,Account,High,yes
 T-0021,Shipping,Low,no
 T-0022,Technical,Low,no
 T-0023,Technical,Low,no
-T-0024,Billing,High,yes
+T-0024,Billing,Urgent,yes
 T-0025,Technical,Urgent,yes
 T-0026,Account,Urgent,yes
 T-0027,Shipping,Low,no
@@ -61,7 +61,7 @@ T-0059,Account,Low,no
 T-0060,Account,Urgent,yes
 T-0061,Technical,Low,no
 T-0062,Account,High,yes
-T-0063,Account,Low,yes
+T-0063,Account,High,yes
 T-0064,Billing,Low,no
 T-0065,Billing,Low,no
 T-0066,Technical,Low,no
@@ -91,12 +91,12 @@ T-0089,Account,Low,no
 T-0090,Account,Low,no
 T-0091,Other,Low,no
 T-0092,Shipping,Low,no
-T-0093,Other,Low,no
+T-0093,Other,Low,yes
 T-0094,Shipping,Low,no
 T-0095,Shipping,Low,no
 T-0096,Technical,Urgent,yes
 T-0097,Billing,Low,no
-T-0098,Account,High,yes
+T-0098,Account,Urgent,yes
 T-0099,Other,Medium,no
 T-0100,Shipping,Low,no
 T-0101,Other,Low,yes
@@ -120,8 +120,8 @@ T-0118,Technical,Low,no
 T-0119,Billing,Low,no
 T-0120,Account,Low,no
 T-0121,Billing,High,yes
-T-0122,Account,Low,yes
-T-0123,Account,Low,no
+T-0122,Account,High,yes
+T-0123,Account,High,yes
 T-0124,Account,Low,no
 T-0125,Technical,Urgent,yes
 T-0126,Billing,Low,no
@@ -150,10 +150,10 @@ T-0148,Account,Low,no
 T-0149,Billing,Low,no
 T-0150,Shipping,Low,no
 T-0151,Other,Low,no
-T-0152,Account,Low,yes
+T-0152,Account,High,yes
 T-0153,Technical,Medium,no
-T-0154,Account,Low,yes
-T-0155,Account,Low,no
+T-0154,Account,High,yes
+T-0155,Account,High,yes
 T-0156,Other,Low,no
 T-0157,Other,Low,no
 T-0158,Account,Low,no
@@ -170,7 +170,7 @@ T-0168,Account,Low,no
 T-0169,Other,Medium,no
 T-0170,Shipping,Low,no
 T-0171,Other,Low,no
-T-0172,Account,Low,no
+T-0172,Account,High,yes
 T-0173,Billing,Low,no
 T-0174,Other,Low,yes
 T-0175,Other,Low,no
@@ -217,7 +217,7 @@ T-0215,Technical,Low,no
 T-0216,Account,Low,no
 T-0217,Shipping,Low,no
 T-0218,Billing,High,yes
-T-0219,Account,Low,no
+T-0219,Account,High,yes
 T-0220,Other,Low,no
 T-0221,Technical,Low,no
 T-0222,Shipping,Low,no
@@ -249,7 +249,7 @@ T-0247,Account,Low,no
 T-0248,Other,Low,no
 T-0249,Other,Low,no
 T-0250,Other,Low,no
-T-0251,Technical,Low,no
+T-0251,Technical,High,yes
 T-0252,Shipping,Low,no
 T-0253,Other,Low,no
 T-0254,Shipping,High,yes
@@ -259,7 +259,7 @@ T-0257,Shipping,Low,no
 T-0258,Other,Low,no
 T-0259,Account,Urgent,yes
 T-0260,Billing,Low,no
-T-0261,Other,Low,no
+T-0261,Other,Low,yes
 T-0262,Billing,Low,no
 T-0263,Billing,Low,no
 T-0264,Shipping,Low,no
@@ -283,7 +283,7 @@ T-0281,Billing,Low,no
 T-0282,Billing,Low,no
 T-0283,Technical,High,yes
 T-0284,Other,Medium,no
-T-0285,Billing,High,yes
+T-0285,Billing,Urgent,yes
 T-0286,Shipping,High,yes
 T-0287,Account,Urgent,yes
 T-0288,Other,Low,no
@@ -295,7 +295,7 @@ T-0293,Other,Low,no
 T-0294,Account,Low,no
 T-0295,Shipping,Low,no
 T-0296,Technical,Low,no
-T-0297,Account,High,yes
+T-0297,Account,Urgent,yes
 T-0298,Shipping,Low,no
-T-0299,Billing,Low,yes
+T-0299,Billing,High,yes
 T-0300,Other,Medium,no

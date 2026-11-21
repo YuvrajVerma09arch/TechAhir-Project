@@ -106,10 +106,29 @@ CATEGORY_SIGNALS: dict[Category, tuple[_Signal, ...]] = {
             ("feedback", r"\bgreat product\b|\bthanks\b|\bthank you\b|\bjus saying thanks", 1.5),
             ("complaint", r"\bcomplaint\b|\bridiculous\b|\bunacceptable\b|\bterrible\b|\bworst\b|\bunbelievable", 2.0),
             ("question", r"\bquestion about a feature\b|\bhow do i\b|\bset up a routine\b|\bsecond user", 1.5),
-            ("unknown_subject", r"\(\s*no subject\s*\)|\basdf\b|\?\?\?", 1.0),
+            # NOTE: placeholder subjects ("(no subject)", "asdf", "???", ...)
+            # are deliberately NOT a signal here. They carry zero evidence and
+            # are removed by _sanitised() before any scoring takes place.
         ]
     ),
 }
+
+# Placeholder subjects and near-empty bodies carry no genuine lexical evidence.
+# They are excluded from both scoring and the confidence numerator so that an
+# empty ticket can never look confidently like "Other".
+PLACEHOLDER_SUBJECT_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"^\s*\(\s*no subject\s*\)\s*$", re.IGNORECASE),
+    re.compile(r"^\s*asdf\s*$", re.IGNORECASE),
+    re.compile(r"^\s*\?+\s*$"),
+    re.compile(r"^\s*re:\s*re:\s*fwd:?\s*$", re.IGNORECASE),
+)
+
+NEAR_EMPTY_BODY_PATTERN = re.compile(
+    r"^\s*(?:help|sent from my (?:phone|mobile|iphone|android|device)|hi|hello|test|\.+|\?+|-+)\s*$",
+    re.IGNORECASE,
+)
+
+LOW_EVIDENCE_CONFIDENCE_CAP = 0.30
 
 # --- base priority cues -----------------------------------------------------
 
@@ -143,6 +162,7 @@ class CategoryAssessment:
     scores: dict[str, float] = field(default_factory=dict)
     matched_signals: dict[str, list[str]] = field(default_factory=dict)
     reasons: list[str] = field(default_factory=list)
+    low_evidence: bool = False
 
 
 @dataclass
@@ -168,12 +188,25 @@ def _scan(text: str, signals: tuple[_Signal, ...], multiplier: float) -> tuple[f
     return score, matched
 
 
+def _is_placeholder_subject(subject: str) -> bool:
+    return any(pattern.match(subject or "") for pattern in PLACEHOLDER_SUBJECT_PATTERNS)
+
+
+def _is_near_empty_body(body: str) -> bool:
+    return bool(NEAR_EMPTY_BODY_PATTERN.match(body or ""))
+
+
 def category_assessment(ticket: Ticket) -> CategoryAssessment:
     """Score every category over subject + body and return a defensible assessment.
 
     Subject matches count more than body matches. Confidence combines absolute
-    evidence strength with the margin over the runner-up category.
+    evidence strength with the margin over the runner-up category. Placeholder
+    subjects and near-empty bodies are stripped first, so they contribute no
+    score and no confidence.
     """
+    original_subject = ticket.subject or ""
+    original_body = ticket.body or ""
+    ticket = _sanitised(ticket)
     subject, body = ticket.subject or "", ticket.body or ""
 
     scores: dict[str, float] = {}
@@ -189,8 +222,12 @@ def category_assessment(ticket: Ticket) -> CategoryAssessment:
     runner_up = ranked[1][1] if len(ranked) > 1 else 0.0
     category = _category_from_value(top_name)
 
+    low_evidence = top_score <= 0 or (
+        _is_near_empty_body(original_body) and not original_subject.strip()
+    )
+
     if top_score <= 0:
-        # No evidence at all: the honest answer is Other with very low confidence.
+        # No genuine evidence at all: the honest answer is Other with very low confidence.
         category = Category.OTHER
         confidence = 0.05
     else:
@@ -198,16 +235,25 @@ def category_assessment(ticket: Ticket) -> CategoryAssessment:
         margin_ratio = max(0.0, (top_score - runner_up) / top_score)
         confidence = round(0.05 + 0.90 * strength * (0.40 + 0.60 * margin_ratio), 4)
 
+    if low_evidence:
+        # Minimum-evidence gate: an empty/placeholder ticket must never clear a
+        # confidence threshold, regardless of category.
+        confidence = min(confidence, LOW_EVIDENCE_CONFIDENCE_CAP)
+
     reasons = [
         f"category {category.value}: top score {top_score:g}, runner-up {runner_up:g}",
         "matched signals: " + (", ".join(matched_signals[category.value]) or "none"),
     ]
+    if low_evidence:
+        reasons.append("low-evidence gate: placeholder/near-empty text excluded from scoring")
+
     return CategoryAssessment(
         category=category,
         confidence=min(1.0, max(0.0, confidence)),
         scores=scores,
         matched_signals=matched_signals,
         reasons=reasons,
+        low_evidence=low_evidence,
     )
 
 
@@ -224,6 +270,7 @@ def priority_assessment(ticket: Ticket, category_confidence: float) -> PriorityA
     This is intentionally mild: it never emits Urgent. The dedicated safety
     layer in :mod:`priority_engine` owns critical escalation.
     """
+    ticket = _sanitised(ticket)
     text = f"{ticket.subject or ''}\n{ticket.body or ''}"
 
     score = 0.0
@@ -279,11 +326,11 @@ class RuleBasedClassifier:
 
     def predict_category(self, ticket: Ticket) -> CategoryAssessment:
         """Classify the category only (sanitising untrusted text first)."""
-        return category_assessment(_sanitised(ticket))
+        return category_assessment(ticket)
 
     def predict_priority(self, ticket: Ticket, category_confidence: float = 0.0) -> PriorityAssessment:
         """Baseline priority only (no safety escalation)."""
-        return priority_assessment(_sanitised(ticket), category_confidence)
+        return priority_assessment(ticket, category_confidence)
 
     def predict(self, ticket: Ticket) -> Prediction:
         """Return a structured :class:`Prediction` for the ticket."""
@@ -295,6 +342,8 @@ class RuleBasedClassifier:
             "priority_cues": pri.cues,
             "priority_score": round(pri.score, 4),
         }
+        if cat.low_evidence:
+            signals["low_evidence"] = True
         return Prediction(
             category=cat.category,
             priority=pri.priority,
@@ -333,9 +382,15 @@ class RulesEngine:
 
 
 def _sanitised(ticket: Ticket) -> Ticket:
-    """Return a copy of the ticket with injection spans removed (data hygiene)."""
-    return replace(
-        ticket,
-        subject=strip_injection(ticket.subject or ""),
-        body=strip_injection(ticket.body or ""),
-    )
+    """Return a copy with untrusted injection spans and zero-evidence text removed.
+
+    Placeholder subjects and near-empty bodies are data hygiene, not evidence:
+    keeping them would let an empty ticket score as a confident "Other".
+    """
+    subject = strip_injection(ticket.subject or "")
+    body = strip_injection(ticket.body or "")
+    if _is_placeholder_subject(subject):
+        subject = ""
+    if _is_near_empty_body(body):
+        body = ""
+    return replace(ticket, subject=subject, body=body)

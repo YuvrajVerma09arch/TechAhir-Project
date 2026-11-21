@@ -11,6 +11,7 @@ before classification (see :func:`strip_injection`) and always force a review.
 from __future__ import annotations
 
 import math
+import os
 import re
 from typing import Any
 
@@ -25,8 +26,24 @@ from app.triage.types import (
 
 # --- thresholds ------------------------------------------------------------
 
-CAT_THRESHOLD = 0.65
-PRIORITY_THRESHOLD = 0.55
+# The routing thresholds are configurable. These helper reads deliberately use
+# the same environment-variable names exposed by ``app.config.get_settings``
+# (CATEGORY_CONFIDENCE_THRESHOLD / PRIORITY_CONFIDENCE_THRESHOLD) while keeping
+# this engine's historically conservative defaults. The effective defaults are
+# therefore unchanged unless an operator explicitly configures a threshold.
+def _configured_threshold(env_name: str, default: float) -> float:
+    raw = os.getenv(env_name)
+    if raw is None:
+        return default
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return default
+    return value if 0.0 <= value <= 1.0 else default
+
+
+CAT_THRESHOLD = _configured_threshold("CATEGORY_CONFIDENCE_THRESHOLD", 0.65)
+PRIORITY_THRESHOLD = _configured_threshold("PRIORITY_CONFIDENCE_THRESHOLD", 0.55)
 
 # Asymmetry: an Urgent answer is expensive to get wrong, so it needs more
 # evidence than an ordinary answer before it may be auto-accepted.
@@ -46,6 +63,13 @@ INJECTION_PATTERNS: tuple[tuple[str, str], ...] = (
     ("output_directive", r"output\s+priority\s*="),
     ("output_directive", r"(?:set|classify|mark)\s+(?:this\s+ticket\s+as\s+)?priority\s*="),
     ("output_directive", r"classify\s+this\s+ticket\s+as"),
+    # Generic assignment syntax ("priority=Urgent", "category: Billing").
+    ("parameter_assignment", r"\b(?:priority|category)\s*[:=]"),
+    # Instruction verbs aimed at the classifier's output fields. Kept narrow:
+    # the verb must be followed by the field name (possibly with "this ticket")
+    # or by an explicit field -> value assignment.
+    ("field_directive", r"\b(?:assign|set|classify|mark|change|output|label|route|tag)\s+(?:this\s+)?(?:ticket\s+)?(?:the\s+)?(?:category|priority)\b"),
+    ("field_directive", r"\b(?:assign|set|classify|mark|change|output|label|route|tag)\b[^.!\n]{0,60}\b(?:category|priority)\s*(?:to|as|=|:)\s*[A-Za-z]+"),
     ("review_suppression", r"do\s+not\s+send\s+(?:it\s+)?for\s+review"),
     ("review_suppression", r"(?:skip|bypass)\s+(?:the\s+)?(?:human\s+)?review"),
     ("role_directive", r"\byou\s+are\s+now\b"),
@@ -176,11 +200,17 @@ def route(
     *,
     latency_ms: float = 0.0,
     engine_name: str | None = None,
+    category_threshold: float | None = None,
+    priority_threshold: float | None = None,
 ) -> TriageResult:
     """Turn a raw prediction into a fully decided :class:`TriageResult`.
 
     Auto-accept requires BOTH confidence thresholds to pass and NO safety,
     escalation or injection flags. Urgent predictions use stricter thresholds.
+
+    ``category_threshold`` / ``priority_threshold`` may be supplied by a caller
+    (e.g. the API layer reading application settings); when absent, the
+    environment-configurable module constants are used.
     """
     engine = engine_name or getattr(prediction, "engine", "rules")
 
@@ -221,9 +251,22 @@ def route(
     if signals.get("priority_conflict"):
         decision_reasons.append("classifier priority conflicted with safety priority; escalated")
 
+    # Independent, safety-owned review triggers. These are honoured regardless of
+    # the predicted priority: a loss of 2FA/access, an urgent candidate or a
+    # near-evidence-free ticket can never be auto-accepted.
+    if signals.get("requires_human_review"):
+        policy_reason = signals.get("requires_human_review_reason") or "safety policy"
+        decision_reasons.append(f"human review required by safety policy: {policy_reason}")
+    if signals.get("urgent_candidate"):
+        decision_reasons.append("potential urgent/critical case flagged for human confirmation")
+    if signals.get("low_evidence"):
+        decision_reasons.append("insufficient genuine text evidence; human review required")
+
     is_urgent = prediction.priority is Priority.URGENT
-    cat_threshold = URGENT_CAT_THRESHOLD if is_urgent else CAT_THRESHOLD
-    pri_threshold = URGENT_PRIORITY_THRESHOLD if is_urgent else PRIORITY_THRESHOLD
+    normal_cat_threshold = category_threshold if category_threshold is not None else CAT_THRESHOLD
+    normal_pri_threshold = priority_threshold if priority_threshold is not None else PRIORITY_THRESHOLD
+    cat_threshold = URGENT_CAT_THRESHOLD if is_urgent else normal_cat_threshold
+    pri_threshold = URGENT_PRIORITY_THRESHOLD if is_urgent else normal_pri_threshold
 
     if prediction.category_confidence < cat_threshold:
         decision_reasons.append(

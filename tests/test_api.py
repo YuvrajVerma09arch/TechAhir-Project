@@ -205,3 +205,22 @@ def test_report(client):
     response = client.get("/api/report")
     assert response.status_code == 200, response.text
     assert isinstance(response.json(), dict)
+
+
+# --- repeat review regression ------------------------------------------------
+def test_repeat_review_returns_409_conflict(client):
+    # Arrange — seed, then pick a ticket that genuinely needs review.
+    assert client.get("/api/triage/seed").status_code == 200
+    queue = client.get("/api/review-queue", params={"page_size": 5}).json()["data"]
+    ticket_id = queue[0].get("id") or queue[0].get("ticket_id")
+    payload = {"category": "Technical", "priority": "High", "reviewer": "tester"}
+
+    # Act — first review succeeds, second review of the same ticket is attempted.
+    first = client.post(f"/api/review/{ticket_id}", json=payload)
+    second = client.post(f"/api/review/{ticket_id}", json=payload)
+
+    # Assert — a ticket can be reviewed only once; the repeat is a conflict.
+    assert first.status_code == 200, first.text
+    assert second.status_code == 409, second.text
+    # A structured error envelope must accompany the conflict.
+    assert _error(second)["code"]

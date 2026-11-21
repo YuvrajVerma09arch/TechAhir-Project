@@ -2,8 +2,8 @@
   "total_input": 300,
   "processed": 300,
   "successfully_processed": 300,
-  "auto_classified": 234,
-  "pending_review": 66,
+  "auto_classified": 226,
+  "pending_review": 74,
   "human_reviewed": 0,
   "failed": 0,
   "category_distribution": {
@@ -14,22 +14,30 @@
     "Technical": 68
   },
   "priority_distribution": {
-    "High": 20,
-    "Low": 244,
+    "High": 27,
+    "Low": 233,
     "Medium": 12,
-    "Urgent": 24
+    "Urgent": 28
   },
   "escalation_reasons": [
     {
       "reason": "classifier/safety conflict",
-      "count": 41
+      "count": 52
     },
     {
       "reason": "priority escalated by safety layer",
-      "count": 41
+      "count": 52
     },
     {
       "reason": "safety: financial_loss",
+      "count": 20
+    },
+    {
+      "reason": "safety: hard_deadline",
+      "count": 18
+    },
+    {
+      "reason": "safety: access_loss",
       "count": 17
     },
     {
@@ -49,10 +57,6 @@
       "count": 12
     },
     {
-      "reason": "safety: hard_deadline",
-      "count": 11
-    },
-    {
       "reason": "safety: account_takeover",
       "count": 3
     },
@@ -61,17 +65,19 @@
       "count": 2
     }
   ],
-  "processing_duration_ms": 32.02,
-  "processing_duration_seconds": 0.032,
-  "automation_coverage": 0.78,
-  "automation_coverage_pct": 78.0,
-  "review_rate": 0.22,
+  "processing_duration_ms": 737.17,
+  "processing_duration_seconds": 0.737,
+  "automation_coverage": 0.7533,
+  "automation_coverage_pct": 75.33,
+  "review_rate": 0.2467,
   "failure_rate": 0.0,
   "submitted": 300,
-  "duplicates": 300,
-  "new_tickets": 0,
+  "duplicates": 0,
+  "new_tickets": 300,
   "human_reviews_recorded": 0,
   "original_predictions_stored": 300,
-  "average_latency_ms": 0.816,
-  "invariant_holds": true
+  "average_latency_ms": 1.409,
+  "invariant_holds": true,
+  "missing_results": 0,
+  "run_metrics_note": "submitted/duplicates/new_tickets describe the most recent batch; other counts are cumulative"
 }

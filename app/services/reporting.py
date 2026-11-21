@@ -46,6 +46,14 @@ def _collect_escalation_reasons(records: Iterable[dict[str, Any]]) -> list[dict[
     return [{"reason": reason, "count": count} for reason, count in sorted(counter.items(), key=lambda item: (-item[1], item[0]))]
 
 
+_KNOWN_STATUSES = ("auto_classified", "pending_review", "human_reviewed", "failed")
+
+_RUN_METRICS_NOTE = (
+    "submitted/duplicates/new_tickets describe the most recent batch; "
+    "other counts are cumulative"
+)
+
+
 def build_report(
     *,
     results: list[dict[str, Any]],
@@ -54,8 +62,14 @@ def build_report(
     latest_run: dict[str, Any] | None = None,
     submitted: int = 0,
     duplicates: int = 0,
+    total_tickets: int | None = None,
 ) -> dict[str, Any]:
     """Build a fully derived report dict from stored records.
+
+    ``total_tickets`` (when supplied) is the authoritative denominator from the
+    tickets table. A ticket whose result row is missing or carries an unknown
+    status is treated as ``failed`` rather than being silently dropped, so a
+    mid-batch DB failure can never break reporting.
 
     Raises:
         AssertionError: if the mutual-exclusivity accounting invariant is broken.
@@ -64,12 +78,35 @@ def build_report(
     reviews = reviews or []
     latest_run = latest_run or {}
 
-    total = len(results)
-    counts = Counter(str(record.get("status") or "unknown") for record in results)
+    # Normalise orphan rows: a ticket with no decision is a failure, never an
+    # unaccounted "unknown" status that would violate the invariant.
+    normalised: list[dict[str, Any]] = []
+    orphan_rows = 0
+    for record in results:
+        item = dict(record)
+        status = str(item.get("status") or "").strip()
+        if status not in _KNOWN_STATUSES:
+            orphan_rows += 1
+            item["status"] = "failed"
+            item["needs_review"] = True
+            reasons = list(item.get("reasons") or [])
+            reasons.append("missing result row: ticket had no decision (counted as failed)")
+            item["reasons"] = reasons
+        normalised.append(item)
+    results = normalised
+
+    counted = len(results)
+    total = max(int(total_tickets or 0), counted)
+    # Tickets present in the tickets table but absent from the result feed are
+    # also failures; add them so the invariant still closes.
+    missing_from_feed = total - counted
+    missing_results = orphan_rows + missing_from_feed
+
+    counts = Counter(str(record.get("status")) for record in results)
     auto = counts.get("auto_classified", 0)
     pending = counts.get("pending_review", 0)
     human = counts.get("human_reviewed", 0)
-    failed = counts.get("failed", 0)
+    failed = counts.get("failed", 0) + missing_from_feed
     processed = total - failed
 
     invariant_holds = total == auto + pending + human + failed
@@ -112,6 +149,8 @@ def build_report(
         "original_predictions_stored": len(predictions),
         "average_latency_ms": round(sum(latencies) / len(latencies), 3) if latencies else 0.0,
         "invariant_holds": invariant_holds,
+        "missing_results": missing_results,
+        "run_metrics_note": _RUN_METRICS_NOTE,
     }
 
 

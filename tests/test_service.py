@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from app.database.db import AlreadyReviewedError
 from app.services.triage_service import TriageService
 from app.triage.types import Category, Prediction, Priority, Status, Ticket, TriageEngine
 
@@ -300,3 +301,137 @@ def test_get_report_saves_json(service: TriageService, tmp_path: Path) -> None:
     assert saved["total_input"] == report["total_input"] == 1
     assert "automation_coverage" in saved
     assert "processing_duration_ms" in saved
+
+
+# ---------------------------------------------------------------------------
+# Dataset-backed / regression tests (real rows from data/tickets.csv)
+#
+# These encode the behaviours the code review found missing: persisted artifacts
+# must follow a human review, repeat reviews must be rejected, orphan rows must
+# not break accounting, and a full double-seed must remain idempotent.
+# Only public APIs (TriageService, Database) are used; all paths are temporary.
+# ---------------------------------------------------------------------------
+
+_TICKETS_CSV = Path(__file__).resolve().parents[1] / "data" / "tickets.csv"
+
+
+def load_real_ticket(ticket_id: str) -> Ticket:
+    """Arrange helper: load one verbatim ticket from the real dataset."""
+    with open(_TICKETS_CSV, newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(handle):
+            if row["id"] == ticket_id:
+                return Ticket(
+                    id=row["id"],
+                    received_at=row["received_at"],
+                    customer=row["customer"],
+                    subject=row["subject"],
+                    body=row["body"],
+                )
+    raise AssertionError(f"{ticket_id} is not present in {_TICKETS_CSV}")
+
+
+def load_all_real_tickets() -> list[Ticket]:
+    """Arrange helper: load all verbatim tickets from the real dataset."""
+    with open(_TICKETS_CSV, newline="", encoding="utf-8") as handle:
+        return [
+            Ticket(
+                id=row["id"],
+                received_at=row["received_at"],
+                customer=row["customer"],
+                subject=row["subject"],
+                body=row["body"],
+            )
+            for row in csv.DictReader(handle)
+        ]
+
+
+def _results_rows(path: Path) -> list[dict]:
+    with open(path, newline="", encoding="utf-8") as handle:
+        return list(csv.DictReader(handle))
+
+
+def test_artifacts_refresh_on_disk_after_human_review(tmp_path: Path) -> None:
+    # Arrange — a temp DB means artifacts live only in the temp dir.
+    svc = TriageService(db_path=str(tmp_path / "triage.db"))
+    svc.process_batch([make_ticket("T-REVIEW", "help", "help")])
+    report_path = tmp_path / "report.json"
+    results_path = tmp_path / "results.csv"
+    before_report = json.loads(report_path.read_text(encoding="utf-8"))
+    before_row = next(r for r in _results_rows(results_path) if r["id"] == "T-REVIEW")
+
+    # Guard: the batch persisted a pending-review artifact state.
+    assert before_report["pending_review"] >= 1
+    assert before_row["needs_review"] == "yes"
+
+    # Act — a human corrects the ticket.
+    svc.submit_review("T-REVIEW", Category.TECHNICAL, Priority.HIGH, reviewer="alice")
+
+    # Assert — the ON-DISK report and results.csv must reflect the transition.
+    after_report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert after_report["human_reviewed"] == before_report["human_reviewed"] + 1
+    assert after_report["pending_review"] == before_report["pending_review"] - 1
+    assert after_report["invariant_holds"] is True
+    after_row = next(r for r in _results_rows(results_path) if r["id"] == "T-REVIEW")
+    assert after_row["category"] == Category.TECHNICAL.value
+    assert after_row["priority"] == Priority.HIGH.value
+    assert after_row["needs_review"] == "no"
+
+
+def test_repeat_human_review_is_rejected_by_service(service: TriageService) -> None:
+    # Arrange — one ticket reviewed exactly once.
+    service.process_batch([make_ticket("T-REVIEW", "help", "help")])
+    service.submit_review("T-REVIEW", Category.TECHNICAL, Priority.HIGH, reviewer="alice")
+    reviews_after_first = len(service.db.all_reviews())
+
+    # Act / Assert — a second review for the same ticket is rejected with the
+    # documented exception and must not append a duplicate review record.
+    with pytest.raises(AlreadyReviewedError):
+        service.submit_review("T-REVIEW", Category.BILLING, Priority.LOW, reviewer="bob")
+    assert len(service.db.all_reviews()) == reviews_after_first
+
+
+def test_report_does_not_raise_on_orphan_ticket_row(tmp_path: Path) -> None:
+    # Arrange — simulate a mid-batch crash: a ticket row exists with no result.
+    svc = TriageService(db_path=str(tmp_path / "orphan.db"))
+    svc.db.insert_ticket(make_ticket("T-ORPHAN", "Invoice copy", "Please send my invoice."))
+
+    # Act — reporting must tolerate the orphan row.
+    report = svc.get_report()
+
+    # Assert — no exception, invariant holds, and the orphan is accounted for.
+    assert report["invariant_holds"] is True
+    assert report["total_input"] == 1
+    assert (
+        report["auto_classified"]
+        + report["pending_review"]
+        + report["human_reviewed"]
+        + report["failed"]
+        == report["total_input"]
+    )
+
+
+def test_full_real_dataset_double_batch_is_idempotent_with_invariant(tmp_path: Path) -> None:
+    # Arrange — the real 300-ticket dataset and a temp DB.
+    svc = TriageService(db_path=str(tmp_path / "full.db"))
+    tickets = load_all_real_tickets()
+    assert len(tickets) == 300
+
+    # Act — process the whole dataset, then repeat it.
+    first = svc.process_batch(tickets)
+    second = svc.process_batch(tickets)
+    report = svc.get_report()
+    results_path = tmp_path / "results.csv"
+
+    # Assert — first run ingests all 300 exactly once.
+    assert first["total_input"] == 300
+    assert first["new_tickets"] == 300
+    assert first["duplicates"] == 0
+    assert report["invariant_holds"] is True
+    assert report["auto_classified"] + report["pending_review"] + report["human_reviewed"] + report["failed"] == 300
+    assert len(_results_rows(results_path)) == 300
+
+    # Assert — second run is a pure duplicate: no double-counting.
+    assert second["new_tickets"] == 0
+    assert second["duplicates"] == 300
+    assert svc.get_report()["total_input"] == 300
+    assert len(_results_rows(results_path)) == 300

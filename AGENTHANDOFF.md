@@ -186,7 +186,12 @@ Next commit: master-prompt requirement sync (this update) + dataset copy.
 | 2026-11-21 | Main | End-to-end verification: 55 tests pass, frontend `npm run build` clean, API health/seed/batch/review/report smoke-tested via TestClient, idempotent re-seed confirmed (300 duplicates, no double-count), accounting invariant holds. Regenerated authoritative 300-ticket `artifacts/*`; updated README results table. | `0df39ee` |
 | 2026-11-21 | Review agents | Two read-only audits: docs/deployment (no blockers, 5 minors) and code/safety (2 blockers, 4 majors, 4 minors). Findings recorded in §9. | — |
 | 2026-11-21 | Main | Fixed docs minors: removed non-existent export route and `run.py` reference, corrected chart wording, labelled design-note bullets, clarified dependencies. | `be0bf72` |
-| 2026-11-21 | Main | Recorded §9 review findings and Phase 4 fix-agent ownership. | (this commit) |
+| 2026-11-21 | Main | Recorded §9 review findings and Phase 4 fix-agent ownership. | `02d7539` |
+| 2026-11-21 | Main | Decision: no external LLM API; documented rules layer + LLM-ready protocol decision. | `3e93bc3` |
+| 2026-11-21 | Safety agent | Added `access_loss` signals (2FA/stolen phone/lockout/multilingual), zero-evidence gating for placeholder subjects, financial-loss/urgency broadening, injection assignment patterns, configurable thresholds. | (integration commit) |
+| 2026-11-21 | Service agent | Artifact refresh after review, whole-ticket failure containment + DB retries, orphan-row-safe reporting, immutable review originals + 409 repeat reviews, run-metrics note. | (integration commit) |
+| 2026-11-21 | Test agent | 32 dataset-backed regression tests (real CSV text): never-auto set, Urgent cases, injections, artifact refresh, repeat review, orphan rows, 300×2 idempotency. 87 tests pass. | (integration commit) |
+| 2026-11-21 | Main | Aligned category-threshold default (0.65) across config.py/.env.example/confidence.py. Regenerated authoritative artifacts from a fresh DB with one seed: **300 = 226 auto + 74 review + 0 reviewed + 0 failed**, 75.33% coverage, 28 Urgent, 2 injections, invariant holds. README §10 updated. | (integration commit) |
 
 ---
 
@@ -232,7 +237,11 @@ class TriageService:
 
 ---
 
-## 9. Review findings and remediation (Phase 4 — IN PROGRESS)
+## 9. Review findings and remediation (Phase 4 — COMPLETED 2026-11-21)
+
+All findings below were fixed by three parallel agents and verified: **87 tests passing**
+(55 original + 32 new dataset-backed regression cases), frontend build clean, authoritative
+artifacts regenerated. See worklog for commits.
 
 Two read-only review agents audited the integrated build. Docs/deployment review: **no blockers**,
 5 minor items fixed in `be0bf72`. Code/safety review found real defects — all being fixed now by

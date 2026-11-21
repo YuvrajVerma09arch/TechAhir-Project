@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Query
 
 from app.api import ApiError, get_service, normalize_list
 from app.config import get_settings
+from app.database.db import AlreadyReviewedError
 from app.schemas import ReviewIn, ReviewOut, TicketListOut
 
 router = APIRouter(prefix="/api", tags=["reviews"])
@@ -40,6 +41,12 @@ def submit_review(
             payload.priority,
             payload.reviewer,
         )
+    except AlreadyReviewedError:
+        raise ApiError(
+            409,
+            "ALREADY_REVIEWED",
+            f"Ticket '{ticket_id}' has already been reviewed and cannot be reviewed again.",
+        ) from None
     except (KeyError, LookupError):
         raise ApiError(404, "NOT_FOUND", f"Ticket '{ticket_id}' was not found.") from None
     if result is None:

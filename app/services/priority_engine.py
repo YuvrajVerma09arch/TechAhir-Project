@@ -55,6 +55,62 @@ SAFETY_PATTERNS: dict[str, tuple[_SafetyPattern, ...]] = {
             ("money_out", r"\bmoney (?:going out|debited|taken|gone)\b|\bपैसे\s*कट|\bmoney.*कट"),
             ("fraudulent_order", r"\bnew orders being placed\b|\borders? (?:being|are) placed.{0,30}\bnot mine\b|\bnot mine\b.{0,30}\borders?\b"),
             ("duplicate_charge", r"\bdouble[ -]charge|\bcharged twice\b|\bduplicate payment|\bcobro duplicado\b"),
+            (
+                "payments_not_mine",
+                r"\b(?:payments?|charges?|transactions?) (?:i|we) (?:do not|don't) remember (?:making|authorising|authorizing)\b"
+                r"|\bi (?:do not|don't) remember making\b"
+                r"|\b(?:payments?|charges?) (?:that )?(?:i|we) (?:did not|didn't) (?:make|authorise|authorize)\b"
+                r"|\b(?:payments?|charges?) (?:i|we) (?:do not|don't) recogni[sz]e\b",
+            ),
+            ("before_more_goes_out", r"\bbefore (?:more|any more|anything else)\b|\bbefore (?:more|any) (?:money|charges|payments)\b"),
+            ("active_loss_window", r"\bin the (?:last|past) (?:hour|half hour|few minutes)\b|\bover the last hour\b"),
+        ]
+    ),
+    # A loss of a second-factor device or of account access is independently
+    # safety-critical: the customer may be about to lose the only working
+    # session. These signals force human review even at a non-Urgent priority.
+    "access_loss": _patterns(
+        [
+            (
+                "authenticator_device_lost",
+                r"\b(?:phone|device)\s+(?:was\s+|has been\s+)?(?:stolen|lost|missing)\b"
+                r"|\b(?:my\s+)?(?:phone|authenticator)\s+(?:was\s+)?stolen\b"
+                r"|\b(?:lost|misplaced)\s+(?:my\s+)?(?:phone|authenticator|2fa device)\b"
+                r"|\bauthenticator (?:app|device)\b.{0,40}\b(?:gone|lost|stolen|unavailable|no longer)\b",
+            ),
+            (
+                "two_factor_unavailable",
+                r"\b(?:can(?:not|'t)|unable to)\s+(?:use|access)\s+(?:my\s+)?(?:2fa|two[ -]?factor|authenticator)\b"
+                r"|\b(?:no longer|without)\s+(?:access to\s+)?(?:my\s+)?(?:2fa|two[ -]?factor|authenticator)\b"
+                r"|\bchanged my phone number\b",
+            ),
+            (
+                "login_codes_unavailable",
+                r"\bcan no longer receive (?:login|verification|security) codes?\b"
+                r"|\b(?:no longer|not) receiving (?:login|verification|security) codes?\b"
+                r"|\b(?:can(?:not|'t)|unable to) (?:receive|get) (?:the )?(?:login|verification) codes?\b"
+                r"|\bverification codes? (?:never arrive|not arriving|do not arrive|don't arrive)\b"
+                r"|\bel correo para restablecer la contraseña nunca llega\b",
+            ),
+            (
+                "session_lockout",
+                r"\blocked out (?:when|once|after)\b"
+                r"|\bwill be locked out\b"
+                r"|\b(?:when|once) (?:the |my |this )?session (?:ends|expires|closes)\b",
+            ),
+            (
+                "no_access_multilingual",
+                r"\bno longer have access\b"
+                r"|\bno access to (?:anything|everything|our|any)\b"
+                r"|\blocked out of my account\b"
+                r"|\bno tengo acceso\b"
+                r"|\bno puedo (?:entrar|iniciar sesión|acceder)\b"
+                r"|\b(?:je n['’]ai|n['’]ai) plus accès\b"
+                r"|\bnon (?:riesco|posso) accedere\b"
+                r"|\bkein zugriff mehr\b"
+                r"|\b(?:kann|könnte) mich nicht (?:mehr )?anmelden\b"
+                r"|\bमुझे.{0,30}(?:लॉग ?इन|प्रवेश).{0,30}नहीं\b",
+            ),
         ]
     ),
     "service_outage": _patterns(
@@ -83,6 +139,8 @@ SAFETY_PATTERNS: dict[str, tuple[_SafetyPattern, ...]] = {
         [
             ("deadline", r"\bdeadline\b|\btime[ -]sensitive\b|\bby end of day\b"),
             ("imminent", r"\bwithin the hour\b|\bbefore more\b|\bby friday\b|\btoday\b"),
+            ("active_loss_window", r"\bin the (?:last|past) (?:hour|half hour|few minutes)\b|\bover the last hour\b"),
+            ("stop_immediately", r"\bstop (?:these|this|them|the (?:charges|payments|transactions)) (?:immediately|now|right away)\b"),
         ]
     ),
 }
@@ -94,7 +152,7 @@ _LOCKOUT_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-_PRIMARY_SIGNALS = ("security_breach", "financial_loss", "service_outage")
+_PRIMARY_SIGNALS = ("security_breach", "financial_loss", "service_outage", "access_loss")
 
 
 @dataclass
@@ -107,6 +165,11 @@ class SafetyAssessment:
     escalated: bool = False
     conflict: bool = False
     reasons: list[str] = field(default_factory=list)
+    # Independent review triggers: routing honours these even when the priority
+    # itself was not escalated to Urgent.
+    requires_review: bool = False
+    review_reasons: list[str] = field(default_factory=list)
+    urgent_candidate: bool = False
 
 
 def _safety_signals(text: str) -> dict[str, list[str]]:
@@ -140,11 +203,9 @@ def _decide(baseline: Priority, signals: dict[str, list[str]]) -> Priority:
         "account_takeover" in signals
         or len(primary_present) >= 2
         or ("service_outage" in signals and "severe_impact" in signals)
-        or (
-            bool(primary_present)
-            and "explicit_urgency" in signals
-            and "hard_deadline" in signals
-        )
+        # A corroborated primary signal (e.g. active financial loss) plus an
+        # explicit urgency cue is enough: two independent evidence classes.
+        or (bool(primary_present) and "explicit_urgency" in signals)
     )
 
     if urgent:
@@ -199,6 +260,20 @@ class PrioritySafetyEngine:
                 "classifier priority conflicted with safety priority; escalated and flagged for review"
             )
 
+        # Independent review triggers. Loss of a 2FA device or of account access
+        # is safety-critical in its own right, irrespective of the numeric
+        # priority, so it must never be auto-accepted.
+        review_reasons: list[str] = []
+        if "access_loss" in signals:
+            review_reasons.append("loss of 2FA device or account access requires human review")
+        urgent_candidate = "financial_loss" in signals and bool(
+            {"hard_deadline", "explicit_urgency"} & set(signals)
+        )
+        if urgent_candidate:
+            review_reasons.append("active financial loss flagged as an urgent candidate")
+        requires_review = bool(review_reasons)
+        reasons.extend(review_reasons)
+
         return SafetyAssessment(
             priority=proposed,
             confidence=round(confidence, 4),
@@ -206,6 +281,9 @@ class PrioritySafetyEngine:
             escalated=escalated,
             conflict=conflict,
             reasons=reasons,
+            requires_review=requires_review,
+            review_reasons=review_reasons,
+            urgent_candidate=urgent_candidate,
         )
 
     def apply(self, ticket: Ticket, prediction: Prediction) -> Prediction:
@@ -222,6 +300,11 @@ class PrioritySafetyEngine:
             signals["priority_escalation_from"] = prediction.priority.value
         if assessment.conflict:
             signals["priority_conflict"] = True
+        if assessment.urgent_candidate:
+            signals["urgent_candidate"] = True
+        if assessment.requires_review:
+            signals["requires_human_review"] = True
+            signals["requires_human_review_reason"] = "; ".join(assessment.review_reasons)
         reasons.extend(assessment.reasons)
 
         return Prediction(

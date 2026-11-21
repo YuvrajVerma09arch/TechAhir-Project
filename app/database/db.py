@@ -23,6 +23,10 @@ from typing import Any
 from app.triage.types import Prediction, TriageResult
 
 
+class AlreadyReviewedError(ValueError):
+    """A ticket may only be reviewed once; a second review is rejected."""
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
 
@@ -226,18 +230,43 @@ class Database:
         reviewer: str,
         note: str | None = None,
     ) -> bool:
-        """Append a review record and transition the ticket to human_reviewed."""
+        """Append a review record and transition the ticket to human_reviewed.
+
+        The audited "original" values come from the IMMUTABLE ``predictions``
+        table, never from the mutable ``results`` table — otherwise a second
+        review would record the first correction as if it were the model's
+        original decision. Repeat reviews are rejected outright (the corrections
+        table is append-only and a ticket has exactly one original prediction).
+        """
         with self._connect() as connection:
-            row = connection.execute(
-                """SELECT r.category, r.priority
-                   FROM results r WHERE r.ticket_id = ?""",
-                (ticket_id,),
-            ).fetchone()
-            if row is None:
+            # Reject repeat reviews before touching any row.
+            if connection.execute(
+                "SELECT 1 FROM reviews WHERE ticket_id = ? LIMIT 1", (ticket_id,)
+            ).fetchone() is not None:
+                raise AlreadyReviewedError(f"ticket '{ticket_id}' has already been reviewed")
+
+            # Unknown tickets keep the KeyError -> 404 behaviour at the service/API.
+            if connection.execute(
+                "SELECT 1 FROM tickets WHERE id = ?", (ticket_id,)
+            ).fetchone() is None:
                 return False
 
-            original_category = row["category"]
-            original_priority = row["priority"]
+            # Prefer the immutable original prediction. Fall back to the current
+            # result only when no prediction row exists (e.g. a degraded write)
+            # — at first review the result still equals the model's decision.
+            pred = connection.execute(
+                "SELECT category, priority FROM predictions WHERE ticket_id = ?", (ticket_id,)
+            ).fetchone()
+            if pred is not None:
+                original_category = pred["category"]
+                original_priority = pred["priority"]
+            else:
+                current_row = connection.execute(
+                    "SELECT category, priority FROM results WHERE ticket_id = ?", (ticket_id,)
+                ).fetchone()
+                original_category = current_row["category"] if current_row else None
+                original_priority = current_row["priority"] if current_row else None
+
             connection.execute(
                 """INSERT INTO reviews
                    (ticket_id, original_category, original_priority, corrected_category,
@@ -405,3 +434,8 @@ class Database:
         with self._connect() as connection:
             rows = connection.execute("SELECT status, COUNT(*) AS n FROM results GROUP BY status").fetchall()
         return {row["status"]: row["n"] for row in rows}
+
+    def ticket_count(self) -> int:
+        """Number of ingested tickets — the authoritative reporting denominator."""
+        with self._connect() as connection:
+            return int(connection.execute("SELECT COUNT(*) FROM tickets").fetchone()[0])

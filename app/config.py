@@ -54,7 +54,7 @@ def get_settings() -> Settings:
         version=os.getenv("VERSION", "1.0.0"),
         db_path=os.getenv("DB_PATH", "artifacts/triage.db"),
         data_path=os.getenv("DATA_PATH", "data/tickets.csv"),
-        category_confidence_threshold=_env_float("CATEGORY_CONFIDENCE_THRESHOLD", 0.55),
+        category_confidence_threshold=_env_float("CATEGORY_CONFIDENCE_THRESHOLD", 0.65),
         priority_confidence_threshold=_env_float("PRIORITY_CONFIDENCE_THRESHOLD", 0.55),
         default_page_size=_env_int("DEFAULT_PAGE_SIZE", 50),
         max_page_size=_env_int("MAX_PAGE_SIZE", 200),
