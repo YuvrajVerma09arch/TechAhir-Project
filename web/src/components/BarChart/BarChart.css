@@ -1,0 +1,53 @@
+.bar-chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.bar-chart__row {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) 48px;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.bar-chart__label {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 550;
+}
+
+.bar-chart__track {
+  height: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  overflow: hidden;
+}
+
+.bar-chart__fill {
+  display: block;
+  width: var(--bar-size, 0%);
+  height: 100%;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  transition: width 220ms ease;
+}
+
+.bar-chart__value {
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+@media (max-width: 520px) {
+  .bar-chart__row {
+    grid-template-columns: 72px minmax(0, 1fr) 40px;
+    gap: var(--space-2);
+  }
+  .bar-chart__label,
+  .bar-chart__value {
+    font-size: 0.75rem;
+  }
+}

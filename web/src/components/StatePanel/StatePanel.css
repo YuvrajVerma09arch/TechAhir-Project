@@ -1,0 +1,13 @@
+.state-panel__icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: var(--accent-soft-text);
+}
+.state-panel__icon--error {
+  background: var(--danger-soft);
+  color: var(--danger);
+}

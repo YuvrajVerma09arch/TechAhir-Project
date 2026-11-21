@@ -1,0 +1,16 @@
+# Core API
+fastapi>=0.110,<1
+uvicorn[standard]>=0.27,<1
+pydantic>=2.5,<3
+python-multipart>=0.0.9,<1
+
+# Data handling (light use; ingestion/CSV parsing and reporting)
+pandas>=2.0,<4
+
+# Tests
+pytest>=8.0,<9
+httpx>=0.26,<1
+
+# Optional — the deterministic engine may use TF-IDF exemplar similarity.
+# Not required; the project runs fully offline without it.
+# scikit-learn>=1.3,<2

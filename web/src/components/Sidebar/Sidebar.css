@@ -1,0 +1,106 @@
+.sidebar {
+  position: sticky;
+  top: var(--header-height);
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: var(--sidebar-width);
+  min-height: calc(100vh - var(--header-height));
+  flex: 0 0 var(--sidebar-width);
+  padding: var(--space-6) var(--space-3);
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border-default);
+}
+
+.sidebar__label {
+  padding: 0 var(--space-3);
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sidebar__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  min-height: 40px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 550;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.sidebar__link:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.sidebar__link.is-active {
+  background: var(--accent-soft);
+  border-color: #d4dfff;
+  color: var(--accent-soft-text);
+  font-weight: 650;
+}
+
+.sidebar__foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: auto;
+  padding: var(--space-4) var(--space-3) 0;
+  border-top: 1px solid var(--border-default);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.sidebar__foot-title {
+  color: var(--text-secondary);
+  font-weight: 650;
+}
+
+.sidebar__foot-note {
+  margin-top: var(--space-2);
+  font-style: italic;
+}
+
+@media (max-width: 860px) {
+  .sidebar {
+    position: static;
+    width: 100%;
+    min-height: 0;
+    flex: none;
+    padding: var(--space-3) var(--space-4);
+    border-right: 0;
+    border-bottom: 1px solid var(--border-default);
+  }
+  .sidebar__label,
+  .sidebar__foot {
+    display: none;
+  }
+  .sidebar__list {
+    flex-direction: row;
+    gap: var(--space-2);
+    overflow-x: auto;
+  }
+  .sidebar__link {
+    width: auto;
+    white-space: nowrap;
+  }
+}

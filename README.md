@@ -39,10 +39,12 @@ Taxonomy is taken from the dataset's own README (not from generic defaults):
 | Category | `Billing`, `Technical`, `Account`, `Shipping`, `Other` |
 | Priority | `Low`, `Medium`, `High`, `Urgent` |
 
-Ticket text is treated strictly as **untrusted data**. The dataset contains planted
-instruction-like strings (e.g. `T-0072`, `T-0245`) attempting to change the classifier's rules;
-these are detected and escalated to human review, never obeyed. See
-[`docs/dataset-notes.md`](docs/dataset-notes.md) for the full audit.
+Ticket text is treated strictly as **untrusted data**. The dataset contains exactly two planted
+instruction-like strings (`T-0072`, `T-0245`) attempting to change the classifier's rules; these
+are detected and escalated to human review, never obeyed. The audit also found 58 core safety /
+escalation candidates, one empty body (`T-0093`), several near-empty and non-English tickets, and
+heavily templated duplicate text — all of which inform the conservative routing rules. See
+[`docs/dataset-notes.md`](docs/dataset-notes.md) for the full evidence-backed audit.
 
 ---
 

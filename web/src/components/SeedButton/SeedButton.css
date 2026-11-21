@@ -1,0 +1,11 @@
+.seed-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+
+.seed-action__error {
+  color: var(--danger);
+  font-size: 0.75rem;
+}
