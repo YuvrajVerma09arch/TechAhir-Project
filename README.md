@@ -60,7 +60,6 @@ pip install -r requirements.txt
 
 # 2. Start the backend API  (http://localhost:8000)
 uvicorn app.main:app --reload --port 8000
-# or: python run.py
 
 # 3. Process the 300 provided tickets (idempotent; safe to repeat)
 curl -X POST http://localhost:8000/api/triage/seed
@@ -118,7 +117,7 @@ Shared taxonomy and interfaces live in [`app/triage/types.py`](app/triage/types.
 | Service / rules | Python stdlib (+ optional scikit-learn TF-IDF) | Offline, deterministic, auditable, no API keys or paid services |
 | Storage | SQLite (`sqlite3`) | Zero infrastructure, persistent review queue, easy local demo |
 | Dashboard | React + JavaScript + Vite | Fast, deployable as a static site on Vercel |
-| Charts | Recharts / lightweight CSS bars | Clear analytics without heavy dependencies |
+| Charts | Custom CSS/SVG bar components | Clear analytics without a chart-library dependency |
 | Tests | pytest (+ FastAPI TestClient) | Unit, service and API coverage |
 
 No external model service, API key or paid dependency is required. The application runs fully
@@ -185,8 +184,9 @@ overwritten — human corrections are stored separately for auditability.
 | `GET` | `/api/review-queue` | Pending human reviews (paginated) |
 | `POST` | `/api/review/{id}` | Submit corrections and mark reviewed |
 | `GET` | `/api/report` | Full processing report |
-| `GET` | `/api/report/export` | CSV exports (if enabled) |
 
+CSV downloads are generated client-side in the dashboard's Reports section; there is no
+server-side export route.
 All responses use a consistent error envelope:
 `{"error": {"code": "...", "message": "...", "details": ...}}`.
 
@@ -239,15 +239,17 @@ the dataset has no ground-truth labels.
   independently of the API. The classifier becomes a versioned model artefact behind a local
   inference service with timeouts, circuit breakers and a deterministic fallback; a slow or
   unavailable model degrades to rules + mandatory review rather than blocking the queue.
-- **Monitoring accuracy, confidence and escalation.** Track automation coverage, review rate,
+- **Future — monitoring accuracy, confidence and escalation.** Today's `/api/report` already
+  exposes coverage, review rate, escalation reasons and failure counts; the following extends it.
+  Track automation coverage, review rate,
   confidence distributions, escalation-reason mix, `failed` count, p95 latency and queue depth.
   Human corrections are the ground truth: compare reviewer decisions with model decisions to get
   live precision/recall by category and priority — with special attention to recall on `Urgent`.
-- **Drift detection and periodic evaluation.** Weekly shadow evaluation on a labelled sample,
+- **Future — drift detection and periodic evaluation.** Weekly shadow evaluation on a labelled sample,
   PSI/KS drift checks on feature and confidence distributions, and alerts when review rate or
   `Urgent` disagreement moves beyond control limits. Retrain/recalibrate only on reviewed,
   labelled data, behind an A/B gate.
-- **Verifying reliability one month later.** Replay a frozen golden set (including the injection
+- **Future — verifying reliability one month later.** Replay a frozen golden set (including the injection
   and urgency edge cases) against the current pipeline; assert the accounting invariant, stable
   `Urgent` recall, bounded latency and no silent failures. Compare today's report with the
   month-old baseline and require an explicit sign-off for any regression before promotion.

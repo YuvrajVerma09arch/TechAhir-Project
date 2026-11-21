@@ -3,8 +3,11 @@ fastapi>=0.110,<1
 uvicorn[standard]>=0.27,<1
 pydantic>=2.5,<3
 python-multipart>=0.0.9,<1
+starlette>=0.37,<1          # imported directly by app/api for exception handling
 
-# Data handling (light use; ingestion/CSV parsing and reporting)
+# Data handling — part of the assessment's specified stack. Runtime CSV parsing uses
+# the stdlib csv module, so pandas is not on the critical path but is kept available
+# for ad-hoc analysis of the dataset and exports.
 pandas>=2.0,<4
 
 # Tests
