@@ -227,13 +227,16 @@ class TriageService:
 
 ---
 
-## 8. Next Steps
+## 8. Next Steps — ALL COMPLETE
 - [x] Chosen problem, locked architecture, copied dataset, expanded contract, synced requirements.
 - [x] Phase 1 subagents (engine, api, web, data) launched and integrated.
-- [x] Full pytest (55 passing), frontend build, 300-ticket artifacts generated; README + design note written.
+- [x] Full pytest, frontend build, 300-ticket artifacts generated; README + design note written.
 - [x] Phase 3 reviews run (code/safety + docs/deployment); findings recorded in §9.
-- [ ] Phase 4: apply review fixes via parallel agents (§9), re-run everything, regenerate artifacts.
-- [ ] Final: update README stats, handoff, push to `origin` (public).
+- [x] Phase 4: all review fixes applied via parallel agents; 87 tests passing.
+- [x] Final: README stats updated, artifacts regenerated from clean DB, committed and pushed.
+
+**DELIVERY STATE:** pushed to `origin/main` at `023106d`. Working tree clean.
+The user decided the repository should remain **PRIVATE** (2026-11-21) — do not change visibility.
 
 ---
 
