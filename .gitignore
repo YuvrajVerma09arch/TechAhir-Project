@@ -16,6 +16,14 @@ dist/
 build/
 .next/
 out/
+web/dist/
+
+# Runtime artifacts (generated, not source)
+artifacts/*.db
+artifacts/*.sqlite
+*.db
+*.sqlite
+# results.csv / report.json ARE committed deliverables (generated from the real 300 tickets)
 
 # Python
 __pycache__/
