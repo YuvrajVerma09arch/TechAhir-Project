@@ -35,7 +35,9 @@ These are the operating rules the user explicitly set. Treat them as binding unt
    - (Exact split depends on the statement; confirm before locking architecture.)
 4. **Git**
    - `git init` has been done on `main`.
-   - **NO remote is to be added yet.** The user will add the remote after the project is complete.
+   - ~~NO remote until project complete~~ — **UPDATED 2026-11-21:** the user explicitly
+     instructed adding the remote now. `origin` is configured (see §3). Do not change or
+     remove it unless the user asks. (No push has been performed — ask before pushing.)
    - Commit **all updates in meaningful parts** — i.e. atomic, logical commits at each
      meaningful milestone. Do not leave work uncommitted and do not make one giant final commit.
 5. **Multi-subagent workflow** — The whole task must be executed using multiple subagents
@@ -55,7 +57,8 @@ These are the operating rules the user explicitly set. Treat them as binding unt
 - Default branch: `main`.
 - Temp files (when needed): `/private/var/folders/4q/sb7ljglx3yq8mwlv51flc1pc0000gn/T/opencode`
   — prefer this over generic `/tmp`.
-- No remote configured (intentional — see §2.4).
+- Remote `origin`: `https://github.com/YuvrajVerma09arch/TechAhir-Project.git` (added 2026-11-21
+  at the user's explicit request — see §2.4). Nothing has been pushed yet.
 
 ---
 
@@ -89,6 +92,7 @@ ahir-project-assessment/
 └── README.md            # short project stub
 ```
 
+Remote `origin` → `https://github.com/YuvrajVerma09arch/TechAhir-Project.git` (no push yet).
 Latest commit: `chore: initialize project repository and handoff scaffold` (Phase 0).
 
 ---
@@ -97,7 +101,8 @@ Latest commit: `chore: initialize project repository and handoff scaffold` (Phas
 
 | Date | Agent | Change | Commit |
 | --- | --- | --- | --- |
-| 2026-11-21 | Main | Created project dir, `git init` (main), added `.gitignore`, `README.md`, `AGENTHANDOFF.md`, initial commit | Phase 0 |
+| 2026-11-21 | Main | Created project dir, `git init` (main), added `.gitignore`, `README.md`, `AGENTHANDOFF.md`, initial commit | `1886407` |
+| 2026-11-21 | Main | Added `origin` remote at user's explicit request; updated handoff | (this commit) |
 
 ---
 
@@ -115,7 +120,8 @@ Latest commit: `chore: initialize project repository and handoff scaffold` (Phas
    - update §5 repo state if structure changed,
    - record new decisions/constraints in §2.
 7. **Commit the handoff update** alongside or immediately after the change it documents.
-8. **Do NOT** add a git remote. The user will do that when the project is complete.
+8. **Remote already exists** (`origin`, see §3). Do not modify/remove it, and do not push
+   unless the user explicitly asks. The user handles pushing/deployment credentials.
 
 ### Multi-subagent orchestration map (to activate after the statement)
 
@@ -139,4 +145,5 @@ Latest commit: `chore: initialize project repository and handoff scaffold` (Phas
 - [ ] Decide architecture & stack with the user (Vercel frontend / Render backend intent).
 - [ ] Spin up the multi-subagent workflow per §7 and begin implementation in slices.
 - [ ] Commit each meaningful part; keep this handoff file current throughout.
-- [ ] Deploy to Vercel + Render at the end; do NOT add a remote.
+- [ ] Deploy to Vercel + Render at the end. Remote `origin` is already set (no push yet —
+      confirm with the user before pushing).
