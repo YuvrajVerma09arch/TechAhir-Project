@@ -328,16 +328,16 @@ the dataset has no ground-truth labels.
   labelled review sample before it is allowed to auto-accept anything.
 - **Future — monitoring accuracy, confidence and escalation.** Today's `/api/report` already
   exposes coverage, review rate, escalation reasons and failure counts; the following extends it.
-  Track automation coverage, review rate,
-  confidence distributions, escalation-reason mix, `failed` count, p95 latency and queue depth.
+  Track automation coverage, review rate, confidence distributions, escalation-reason mix,
+  `failed` count, p95 latency and queue depth.
   Human corrections are the ground truth: compare reviewer decisions with model decisions to get
   live precision/recall by category and priority — with special attention to recall on `Urgent`.
-- **Future — drift detection and periodic evaluation.** Weekly shadow evaluation on a labelled sample,
-  PSI/KS drift checks on feature and confidence distributions, and alerts when review rate or
+- **Future — drift detection and periodic evaluation.** Weekly shadow evaluation on a labelled
+  sample, PSI/KS drift checks on feature and confidence distributions, and alerts when review rate or
   `Urgent` disagreement moves beyond control limits. Retrain/recalibrate only on reviewed,
   labelled data, behind an A/B gate.
-- **Future — verifying reliability one month later.** Replay a frozen golden set (including the injection
-  and urgency edge cases) against the current pipeline; assert the accounting invariant, stable
+- **Future — verifying reliability one month later.** Replay a frozen golden set (including the
+  injection and urgency edge cases) against the current pipeline; assert the accounting invariant, stable
   `Urgent` recall, bounded latency and no silent failures. Compare today's report with the
   month-old baseline and require an explicit sign-off for any regression before promotion.
 
