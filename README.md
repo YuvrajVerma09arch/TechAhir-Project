@@ -306,6 +306,10 @@ tests use an isolated temporary database. No test is skipped and no metric is fa
 
 ## 13. Deployment
 
+Exact step-by-step instructions (including how `data/tickets.csv` travels with the repo, seed
+commands, Vercel/Render configuration, and the persistent-disk caveat) are in
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+
 - **Backend (Render):** `render.yaml` defines a Python web service; start command
   `uvicorn app.main:app --host 0.0.0.0 --port $PORT`, health check `/health`.
 - **Frontend (Vercel):** `vercel.json` builds the Vite app from `web/`; set

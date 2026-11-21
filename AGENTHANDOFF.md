@@ -235,8 +235,22 @@ class TriageService:
 - [x] Phase 4: all review fixes applied via parallel agents; 87 tests passing.
 - [x] Final: README stats updated, artifacts regenerated from clean DB, committed and pushed.
 
-**DELIVERY STATE:** pushed to `origin/main` at `023106d`. Working tree clean.
+**DELIVERY STATE:** pushed to `origin/main`. Working tree clean.
 The user decided the repository should remain **PRIVATE** (2026-11-21) — do not change visibility.
+
+### Deployment notes recorded 2026-11-21
+- Added `docs/DEPLOYMENT.md` with exact Render + Vercel steps, data handling, seed commands,
+  env vars, checklist, and the ephemeral-disk caveat (Render free plan loses SQLite review state
+  on restart → need persistent disk + single instance for real shipping).
+- README §13 links to it.
+
+### Escalation rules (for reference)
+Auto-accept needs ALL: valid ticket + valid prediction + no injection markers + no safety signals
++ no escalation/conflict/review/urgent-candidate/low-evidence flags + category conf >= 0.65
+(0.80 if Urgent) + priority conf >= 0.55 (0.85 if Urgent) + priority not Urgent.
+Urgent when: account_takeover, or >=2 primary groups, or outage+severe impact, or any primary +
+explicit urgency. High when: any primary, severe impact, hard deadline, or explicit urgency alone.
+Never downgrade below classifier baseline.
 
 ---
 
