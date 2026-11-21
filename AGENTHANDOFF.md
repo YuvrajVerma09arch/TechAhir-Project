@@ -26,17 +26,19 @@ not sure about must go to a person.* Safety and reliable escalation > automation
 
 ## 2. Confirmed Requirements (tracked — this is the submission checklist)
 
-### 2.1 User overrides (take precedence over the master prompt)
-- **Frontend = React + JavaScript (Vite).** The master prompt's **Streamlit** instruction is
-  explicitly overridden. Keep all dashboard sections (§2.5) but build them in React + JS.
-- **Follow the dataset's taxonomy, not the master prompt's defaults:**
+### 2.1 Requester's own instructions (NOT part of the assessment statement)
+The notes below came from the person who asked for this build. The actual assessment statement is
+`docs/problem-statement.txt` only. Do not cite these notes as brief requirements in the README.
+- **Frontend = React + JavaScript (Vite).** An earlier draft asked for Streamlit; overridden.
+  Keep all dashboard sections (§2.5) but build them in React + JS.
+- **Follow the dataset's taxonomy, not the earlier draft's defaults:**
   - Categories: `Billing`, `Technical`, `Account`, `Shipping`, `Other`
-  - Priorities: `Low`, `Medium`, `High`, `Urgent` (master prompt's Critical/High/Medium/Low is WRONG here)
+  - Priorities: `Low`, `Medium`, `High`, `Urgent` (the earlier draft's Critical/High/Medium/Low was wrong here)
 - Use the relevant field skills (frontend UI engineering, API design, TDD) — applied by orchestrator.
 - Deploy: **Vercel** = frontend, **Render** = backend API. Provide configs for both.
 - Max multi-agent usage with clean contextual handoff between agents.
 
-### 2.2 Master prompt requirements (still binding)
+### 2.2 Requester's additional build instructions (their own, not the statement)
 - **P0:** dataset inspection; ingestion; category + priority classification; confidence-based
   escalation; batch processing; final report; README with design note.
 - **P1:** FastAPI endpoints; SQLite persistence; human review interface.
@@ -251,13 +253,30 @@ workflow). Added `POST /api/triage/ticket`, `TriageService.triage_one()` (genera
 chips, examples, decision result panel), and 3 API tests. New tickets are additive — the committed
 300-ticket artifacts stay the reference benchmark. 90 tests pass; frontend build clean.
 
-### Positioning: "we want an AI model to do this first pass" (added 2026-11-21)
-README §6 now has an explicit "How this satisfies…" subsection: "AI model" is the ROLE (component
-that emits category/priority/confidence/reason), not a mandated technology. Quotes the brief's own
-instruction to use deterministic rules when labels are absent, its "use any tech stack / judge how
-you build" licence, and maps each brief requirement to this implementation in a table. Key line:
-a fabricated trained model would be a worse answer than a rigorous, auditable deterministic
-baseline; review corrections are the future labelled training set.
+### Positioning: "we want an AI model to do this first pass" (corrected 2026-11-21)
+IMPORTANT CORRECTION: the long "master prompt" was the USER'S OWN instruction to us, NOT part of
+the assessment statement. Do not quote it as if it came from the brief. The actual statement is
+`docs/problem-statement.txt` and contains ONLY: the 300-ticket scenario, "we want an AI model to
+do this first pass", the wrong/slow/unavailable + anything-unsure-goes-to-a-person requirement,
+the two deliverables (design note + working project), "Use any tech stack / details left out on
+purpose / judge based on how you build / get a working core first", and the submission instruction.
+
+README §1/§6 now justify the deterministic engine using ONLY that statement: "AI model" is the ROLE
+(component emitting category/priority/confidence/reason); no labels exist so no honest training or
+accuracy claim is possible; offline choice is an ENGINEERING decision (reproducibility, injection
+resistance) not a quoted requirement. Review corrections are the future labelled training set.
+
+### Optional LLM caution judge added 2026-11-21 (user asked; kept rules authoritative)
+`app/services/llm_judge.py` — OFF by default (`LLM_JUDGE_ENABLED` + `LLM_API_KEY` required). It uses
+an OpenAI-compatible chat endpoint via stdlib urllib (no new dependency). Guardrails: outputs ONLY
+`{escalate, reason}` (never category/priority); may only ADD human review; injection-stripped
+untrusted text; strict JSON validation; invalid/timeout/error fails CLOSED; temperature 0. Wired
+into `TriageService.process_batch` after `route()` via optional injectable `judge` param. 13 new
+tests (fake/inert judge, no-network transport stub) — 100 total pass. Disabled by default, so the
+committed 300-ticket artifacts and determinism are unchanged.
+
+IMPORTANT: the earlier "no LLM" decision log below is superseded by this opt-in judge. The rules
+engine is still the ONLY classifier; the LLM is an optional escalation signal, not a classifier.
 
 ### Determinism confirmation 2026-11-21
 Two independent fresh-DB runs over the same 300 tickets produced byte-identical decision fields
@@ -317,11 +336,12 @@ single seed**, update README §10 stats (coverage will change), update this hand
 
 ### Decision log — external AI/LLM API (2026-11-21, user asked for a decision)
 **DECIDED: NO external LLM API call in this submission.** The deterministic rules layer remains the
-first-pass engine. Reasons: (1) master prompt §3 forbids paid APIs, API keys and external model
-services — the reviewer must run it offline; (2) reproducibility of the published results;
-(3) the dataset contains planted prompt injections aimed at an AI classifier, so an LLM primary
-classifier would put the attack on the critical path; (4) no labels exist to prove an LLM is better,
-and its self-reported confidence is uncalibrated (explicitly warned against in the brief).
+first-pass engine. This is OUR engineering decision — the assessment statement does not forbid
+APIs. Reasons: (1) no credentials/service are supplied and the published results must be
+reproducible by a reviewer; (2) the dataset contains planted prompt injections aimed at an AI
+classifier, so an LLM primary classifier would put the attack on the critical path; (3) no labels
+exist to prove an LLM is better, and its self-reported confidence is not a sound basis for the
+"anything unsure goes to a person" rule; (4) an offline engine satisfies "get a working core first".
 Retained from the user's proposal: call it the **rules layer / first-pass engine** (not "model");
 keep TF-IDF out of the story; keep the design **LLM-ready** via the existing `TriageEngine` protocol
 and document an LLM as a future extension in the design note; keep failure handling real via

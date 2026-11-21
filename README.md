@@ -17,11 +17,12 @@ Support teams receive hundreds of tickets a day. Each must be read, categorised 
 before anyone can act. We want an AI model to do the first pass — but the model will sometimes be
 wrong, slow or unavailable, and anything it is not sure about must go to a person.
 
-**Our interpretation of "AI model":** the dataset has no labels to train on, and the assessment
-brief requires the application to work locally with no API keys or paid services. The first pass is
-therefore a **deterministic rules layer** with conservative abstention — deliberately *not* an
-external LLM call. We call it the *first-pass engine* or *rules layer* throughout this document so
-no reviewer expects a trained model. The rules layer runs fully offline and is reproducible.
+**Our interpretation of "AI model":** the statement says *"Use any tech stack… We will judge based
+on how you build,"* and the supplied dataset has no labels to train on or validate against. We
+therefore implemented the first pass as a **deterministic rules layer** with conservative
+abstention — deliberately *not* an external LLM call. We call it the *first-pass engine* or *rules
+layer* throughout this document so no reviewer expects a trained model. It runs fully offline and
+is reproducible.
 
 For this assessment the system processes the provided 300 tickets, writes `results.csv`, exposes
 an API, provides a human review workflow and a dashboard, and reports exactly how all 300 tickets
@@ -138,48 +139,51 @@ The engine is deliberately transparent:
 
 ### How this satisfies "we want an AI model to do this first pass"
 
-In the brief, "AI model" names the **role** in the system — the component that reads a ticket and
-returns a first-pass category, priority, confidence and reason. The deterministic engine fills
-that role. We deliberately did **not** claim a trained model, because the brief also says:
+The statement itself says *"Use any tech stack. Details are left out on purpose. We will judge
+based on how you build. Get a working core first."* The implementation choice is therefore ours,
+and the evaluation is on the quality of the build.
 
-> *"If labelled training data does not exist: Do not pretend to have trained a supervised ML
-> model. Implement a transparent, conservative baseline using deterministic rules or a locally
-> available zero-shot model if one is already installed. Clearly document the limitations."*
+The statement also defines what that first pass must be capable of: *"The model will sometimes be
+wrong, slow, or unavailable, and a wrong priority on an urgent ticket is costly, so anything the
+system is not sure about must go to a person."* We designed around exactly that — the engine emits
+a category, priority, confidence and reason, and deliberately **abstains** when evidence is weak,
+conflicting or safety-relevant. Failure of the decision component is treated as a normal case, not
+an exception.
 
-and *"Use any tech stack… We will judge based on how you build… Get a working core first."*
+The supplied file contains **no category or priority labels**. Training a supervised classifier
+would require inventing labels, which would make every accuracy number meaningless. We therefore
+report only operational counts and state that limitation plainly. In production, the human review
+queue produces the missing ground truth; a trained model can then be evaluated against the rules
+baseline on held-out reviewed tickets. The `TriageEngine` protocol is the swap point.
 
-| Brief requirement | How this project satisfies it |
+| Statement requirement | How this project satisfies it |
 | --- | --- |
 | First-pass classification | Rules layer emits category + priority + confidence + reason for every ticket |
 | "wrong, slow or unavailable" | Injectable failing/invalid engines, failure containment, no ticket dropped, documented degradation path |
 | "anything not sure about goes to a person" | Dual-threshold abstention + safety flags; 24.67% escalation, 100% of Urgent escalated |
-| No paid APIs / must run locally | Fully offline, stdlib rules, no keys, reproducible |
-| Well-documented limitations | No labels → no accuracy claim; review corrections are the future training set |
-
-A human review decision is the ground truth this dataset never provided. Once enough reviews
-accumulate, a supervised model can be trained and evaluated against the rules baseline on held-out
-reviewed tickets — the `TriageEngine` protocol is the swap point. That sequencing is intentional,
-not a missing feature.
+| "Use any tech stack / judge how you build" | Simple, auditable, offline deterministic logic with tests and a truthful report |
+| "Get a working core first" | Working ingestion, classification, review queue, report and API before optional polish |
 
 ### Why no external LLM API
 
-An LLM was considered and rejected for this submission for four concrete reasons:
+This was an engineering choice, not a requirement of the statement. We avoided it because:
 
-1. **The brief forbids it** — no paid API dependencies, no API keys, no external model services;
-   the reviewer must be able to clone and run the project offline.
-2. **Reproducibility** — the results in §10 must be identical for every reviewer; LLM output is
-   non-deterministic across model versions and sampling settings.
-3. **Injection surface** — the dataset contains planted instructions aimed at an AI classifier
+1. **Reproducibility** — no credentials are supplied and the results in §10 must be identical for
+   every reviewer. LLM output varies across model versions and sampling settings; the rules engine
+   is deterministic.
+2. **Injection surface** — the dataset contains planted instructions aimed at an AI classifier
    (`T-0072`, `T-0245`). A deterministic rules layer cannot be prompt-injected; an LLM primary
-   classifier would put the attack directly on the critical path.
-4. **No evidence of benefit** — with no ground-truth labels there is no way to show an LLM is more
-   accurate than the rules, and an LLM's self-reported confidence is uncalibrated (the brief warns
-   against trusting it).
+   classifier would put the attack on the critical path.
+3. **No evidence of benefit** — with no ground-truth labels there is no way to show an LLM is more
+   accurate, and its self-reported confidence is not a reliable basis for the "anything not sure
+   about goes to a person" rule. Our confidence comes from transparent evidence strength and a
+   top-two margin instead.
+4. **Working core first** — an offline engine runs anywhere with no setup, so a reviewer can clone,
+   install and reproduce the entire result in minutes.
 
-The engine is still **LLM-ready**: it implements the `TriageEngine` protocol in
-`app/triage/types.py`, so a future LLM classifier can be injected into `TriageService` without
-changing the service, API, storage or dashboard. See the design note for the future model-serving
-path.
+The engine remains **LLM-ready**: it implements the `TriageEngine` protocol in
+`app/triage/types.py`, so an LLM classifier can be injected into `TriageService` without changing
+the service, API, storage or dashboard. See the design note for the future model-serving path.
 
 - **Category** — weighted keyword/phrase scoring over subject and body, with separate evidence
   strength and top-two margin. A weak or ambiguous match yields low confidence.
@@ -191,6 +195,23 @@ path.
   detected, ignored as content and forced into review.
 - **Uncertainty** — confidence is a heuristic strength/margin signal, not a calibrated
   probability. When it cannot be established, the ticket is escalated.
+
+### Optional LLM caution judge
+
+The rules engine is always the classifier. An **optional**, off-by-default LLM layer can be added
+on top as a *caution judge* — configured with `LLM_JUDGE_ENABLED=true` and an OpenAI-compatible
+endpoint (`LLM_API_KEY`, `LLM_API_BASE`, `LLM_MODEL`). It is deliberately one-directional:
+
+- It returns only `{"escalate": boolean, "reason": string}` — **never a category or priority**.
+- Its only effect is to **add** human review. It cannot auto-accept a ticket or change a label.
+- Ticket text is injection-stripped before being sent and treated strictly as untrusted data.
+- Invalid JSON, a timeout or any API failure **fails closed** (escalates) rather than silently
+  reducing caution.
+- It is disabled by default, so the offline, reproducible results in §10 are unchanged.
+
+This makes hallucination bias toward safety: a false "escalate" costs one review, while a false
+"do not escalate" cannot override the rules decision. The human reviewer remains the final
+authority. See `.env.example` for all settings.
 
 An engine injectable into `TriageService` also lets tests simulate failures, timeouts and invalid
 responses.

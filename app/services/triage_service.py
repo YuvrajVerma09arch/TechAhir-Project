@@ -18,6 +18,7 @@ from typing import Any
 from app.database import Database
 from app.services.classifier import RulesEngine
 from app.services.confidence import route, validate_prediction, validate_ticket
+from app.services.llm_judge import LlmJudge
 from app.services.reporting import build_report, export_csvs, save_report
 from app.triage.types import (
     Category,
@@ -63,13 +64,20 @@ def _retry_db_write(operation, *, attempts: int = 3, base_delay: float = 0.01):
 class TriageService:
     """End-to-end triage service backed by SQLite."""
 
-    def __init__(self, db_path: str = "artifacts/triage.db", engine: TriageEngine | None = None) -> None:
+    def __init__(
+        self,
+        db_path: str = "artifacts/triage.db",
+        engine: TriageEngine | None = None,
+        judge: Any | None = None,
+    ) -> None:
         self.db = Database(db_path)
         # Generated artefacts live beside the database. Tests use a temp DB, so their
         # reports/CSVs stay in the temp dir and never overwrite the committed 300-ticket run.
         self.artifacts_dir = os.path.dirname(os.path.abspath(db_path)) or os.getcwd()
         # An engine may be injected (e.g. a failing engine in resilience tests).
         self.engine: TriageEngine = engine if engine is not None else RulesEngine()
+        # Optional caution-only LLM judge. Inert unless explicitly enabled with a key.
+        self.judge = judge if judge is not None else LlmJudge()
 
     # ------------------------------------------------------------------
     # ingestion
@@ -178,6 +186,20 @@ class TriageService:
                     else:
                         latency = (time.perf_counter() - started) * 1000
                         result = route(ticket, prediction, latency_ms=latency, engine_name=engine_name)
+
+                # Optional LLM caution judge: it may only ADD human review. It can
+                # never change category/priority or turn a review into an auto-accept.
+                if result.status is not Status.FAILED and getattr(self.judge, "enabled", False):
+                    verdict = self.judge.judge(ticket, result)
+                    if verdict.escalate:
+                        result.needs_review = True
+                        result.status = Status.PENDING_REVIEW
+                        result.reasons.append(f"LLM judge: {verdict.reason}")
+                        result.signals["llm_judge"] = {
+                            "escalate": True,
+                            "ok": verdict.ok,
+                            "error": verdict.error,
+                        }
             except Exception as exc:  # noqa: BLE001 - any post-insert failure must not orphan a ticket
                 reasons = [f"processing failure: {type(exc).__name__}: {exc}"]
                 if prediction is None:
