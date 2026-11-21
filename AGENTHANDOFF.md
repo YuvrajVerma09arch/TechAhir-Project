@@ -183,7 +183,10 @@ Next commit: master-prompt requirement sync (this update) + dataset copy.
 | 2026-11-21 | Main | Reconciled seed contract: `/api/triage/seed` now accepts BOTH GET and POST (frontend tried POST, API had only GET). | (next commit) |
 | 2026-11-21 | Engine agent | Deterministic rules engine, separate priority safety layer, confidence routing + injection detection, SQLite persistence, reporting, 39 tests. Offline, no trained model. | (next commit) |
 | 2026-11-21 | Main | Fixed report side-effect bug: `get_report()` was writing `artifacts/report.json` during tests and overwrote the real 300-ticket report with a 1-ticket report. Now `get_report()` is pure; artefacts are written beside the service's DB (temp DB in tests → temp artefacts). Full suite still 55 passing; report survives repeated test runs. | (next commit) |
-| 2026-11-21 | Main | End-to-end verification: 55 tests pass, frontend `npm run build` clean, API health/seed/batch/review/report smoke-tested via TestClient, idempotent re-seed confirmed (300 duplicates, no double-count), accounting invariant holds. Regenerated authoritative 300-ticket `artifacts/*`; updated README results table. | (next commit) |
+| 2026-11-21 | Main | End-to-end verification: 55 tests pass, frontend `npm run build` clean, API health/seed/batch/review/report smoke-tested via TestClient, idempotent re-seed confirmed (300 duplicates, no double-count), accounting invariant holds. Regenerated authoritative 300-ticket `artifacts/*`; updated README results table. | `0df39ee` |
+| 2026-11-21 | Review agents | Two read-only audits: docs/deployment (no blockers, 5 minors) and code/safety (2 blockers, 4 majors, 4 minors). Findings recorded in §9. | — |
+| 2026-11-21 | Main | Fixed docs minors: removed non-existent export route and `run.py` reference, corrected chart wording, labelled design-note bullets, clarified dependencies. | `be0bf72` |
+| 2026-11-21 | Main | Recorded §9 review findings and Phase 4 fix-agent ownership. | (this commit) |
 
 ---
 
@@ -221,8 +224,41 @@ class TriageService:
 
 ## 8. Next Steps
 - [x] Chosen problem, locked architecture, copied dataset, expanded contract, synced requirements.
-- [ ] Launch Phase 1 subagents in parallel (engine, api, web, data).
-- [ ] Integrate; run full pytest; generate `artifacts/results.csv` + `report.json` on all 300 tickets.
-- [ ] Phase 2: orchestrator writes final README **with 5–6 bullet design note** + docs.
-- [ ] Phase 3: review agent audits code, outputs and accounting invariant; fix findings.
-- [ ] Phase 4: verify backend health + endpoints and frontend build; push to `origin` (public).
+- [x] Phase 1 subagents (engine, api, web, data) launched and integrated.
+- [x] Full pytest (55 passing), frontend build, 300-ticket artifacts generated; README + design note written.
+- [x] Phase 3 reviews run (code/safety + docs/deployment); findings recorded in §9.
+- [ ] Phase 4: apply review fixes via parallel agents (§9), re-run everything, regenerate artifacts.
+- [ ] Final: update README stats, handoff, push to `origin` (public).
+
+---
+
+## 9. Review findings and remediation (Phase 4 — IN PROGRESS)
+
+Two read-only review agents audited the integrated build. Docs/deployment review: **no blockers**,
+5 minor items fixed in `be0bf72`. Code/safety review found real defects — all being fixed now by
+three parallel agents with strict file ownership.
+
+### Blockers / majors being fixed
+
+| # | Severity | Defect | Evidence | Assignee |
+| --- | --- | --- | --- | --- |
+| 1 | BLOCKER | Total access-loss / 2FA-loss tickets auto-accepted as `Low` with no review | T-0123, T-0155, T-0172, T-0219, T-0251 (and Spanish access loss) | safety-agent |
+| 2 | BLOCKER | Empty-body `T-0093` auto-classified `Other/Low` from `(no subject)` placeholder subject (cat conf 0.80) | `results.csv:94` | safety-agent |
+| 3 | MAJOR | Persisted artifacts stale after human review — `submit_review()` discards `_build_report()` | temp-DB review left `report.json`/CSVs unchanged | service-agent |
+| 4 | MAJOR | Mid-batch exception after `insert_ticket()` orphans a ticket and breaks accounting invariant | injected orphan row made `get_report()` raise `AssertionError` | service-agent |
+| 5 | MAJOR | Active financial loss under-prioritised (T-0024/T-0098/T-0285/T-0297 High; T-0299 Low, no signals) | `results.csv:25,99,286,298,300` | safety-agent |
+| 6 | MAJOR | 55 tests used idealised paraphrases; no dataset-backed safety assertions | why blockers passed | test-agent |
+| 8 | MINOR | Confidence threshold env vars dead config (hardcoded 0.65/0.55) | `config.py` vs `confidence.py` | safety-agent |
+| 9 | MINOR | Review log can record a corrected value as "original"; repeat reviews allowed | two reviews → `original_category` Other then Billing | service-agent |
+| 10 | MINOR | Injection detection bypassable by `priority=` assignment phrasing | novel phrasing got no markers, priority Low→High | safety-agent |
+| 11 | MINOR | Report run counters last-run only (`new_tickets:0, duplicates:300`) | `artifacts/report.json` | service-agent |
+
+### Fix-agent ownership (Phase 4)
+| Agent | Owns |
+| --- | --- |
+| safety-agent | `app/services/{priority_engine,confidence,classifier}.py` |
+| service-agent | `app/services/{triage_service,reporting}.py`, `app/database/db.py`, `app/api/reviews.py` |
+| test-agent | `tests/**` |
+
+After fixes: run full pytest, regenerate authoritative 300-ticket artifacts from a **fresh DB with a
+single seed**, update README §10 stats (coverage will change), update this handoff, commit, push.
