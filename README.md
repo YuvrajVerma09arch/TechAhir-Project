@@ -17,6 +17,12 @@ Support teams receive hundreds of tickets a day. Each must be read, categorised 
 before anyone can act. We want an AI model to do the first pass — but the model will sometimes be
 wrong, slow or unavailable, and anything it is not sure about must go to a person.
 
+**Our interpretation of "AI model":** the dataset has no labels to train on, and the assessment
+brief requires the application to work locally with no API keys or paid services. The first pass is
+therefore a **deterministic rules layer** with conservative abstention — deliberately *not* an
+external LLM call. We call it the *first-pass engine* or *rules layer* throughout this document so
+no reviewer expects a trained model. The rules layer runs fully offline and is reproducible.
+
 For this assessment the system processes the provided 300 tickets, writes `results.csv`, exposes
 an API, provides a human review workflow and a dashboard, and reports exactly how all 300 tickets
 were handled. The original statement is in [`docs/problem-statement.pdf`](docs/problem-statement.pdf).
@@ -130,6 +136,26 @@ offline.
 Because the dataset is unlabelled, we do **not** claim to have trained a supervised model.
 The engine is deliberately transparent:
 
+### Why no external LLM API
+
+An LLM was considered and rejected for this submission for four concrete reasons:
+
+1. **The brief forbids it** — no paid API dependencies, no API keys, no external model services;
+   the reviewer must be able to clone and run the project offline.
+2. **Reproducibility** — the results in §10 must be identical for every reviewer; LLM output is
+   non-deterministic across model versions and sampling settings.
+3. **Injection surface** — the dataset contains planted instructions aimed at an AI classifier
+   (`T-0072`, `T-0245`). A deterministic rules layer cannot be prompt-injected; an LLM primary
+   classifier would put the attack directly on the critical path.
+4. **No evidence of benefit** — with no ground-truth labels there is no way to show an LLM is more
+   accurate than the rules, and an LLM's self-reported confidence is uncalibrated (the brief warns
+   against trusting it).
+
+The engine is still **LLM-ready**: it implements the `TriageEngine` protocol in
+`app/triage/types.py`, so a future LLM classifier can be injected into `TriageService` without
+changing the service, API, storage or dashboard. See the design note for the future model-serving
+path.
+
 - **Category** — weighted keyword/phrase scoring over subject and body, with separate evidence
   strength and top-two margin. A weak or ambiguous match yields low confidence.
 - **Priority** — a dedicated safety layer checks for account compromise, security incidents,
@@ -238,7 +264,10 @@ the dataset has no ground-truth labels.
 - **Future — horizontal scaling and model serving.** Workers are stateless and scale out
   independently of the API. The classifier becomes a versioned model artefact behind a local
   inference service with timeouts, circuit breakers and a deterministic fallback; a slow or
-  unavailable model degrades to rules + mandatory review rather than blocking the queue.
+  unavailable model degrades to rules + mandatory review rather than blocking the queue. The
+  `TriageEngine` protocol is the plug-in point: an LLM-backed classifier can be added later
+  without touching the service, API, storage or dashboard, provided it is validated against a
+  labelled review sample before it is allowed to auto-accept anything.
 - **Future — monitoring accuracy, confidence and escalation.** Today's `/api/report` already
   exposes coverage, review rate, escalation reasons and failure counts; the following extends it.
   Track automation coverage, review rate,

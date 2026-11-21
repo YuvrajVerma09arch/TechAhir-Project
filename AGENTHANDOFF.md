@@ -262,3 +262,15 @@ three parallel agents with strict file ownership.
 
 After fixes: run full pytest, regenerate authoritative 300-ticket artifacts from a **fresh DB with a
 single seed**, update README §10 stats (coverage will change), update this handoff, commit, push.
+
+### Decision log — external AI/LLM API (2026-11-21, user asked for a decision)
+**DECIDED: NO external LLM API call in this submission.** The deterministic rules layer remains the
+first-pass engine. Reasons: (1) master prompt §3 forbids paid APIs, API keys and external model
+services — the reviewer must run it offline; (2) reproducibility of the published results;
+(3) the dataset contains planted prompt injections aimed at an AI classifier, so an LLM primary
+classifier would put the attack on the critical path; (4) no labels exist to prove an LLM is better,
+and its self-reported confidence is uncalibrated (explicitly warned against in the brief).
+Retained from the user's proposal: call it the **rules layer / first-pass engine** (not "model");
+keep TF-IDF out of the story; keep the design **LLM-ready** via the existing `TriageEngine` protocol
+and document an LLM as a future extension in the design note; keep failure handling real via
+injectable failing/invalid engines and tests. README §1, §6 and §11 updated accordingly.
